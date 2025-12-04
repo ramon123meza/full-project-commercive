@@ -1,0 +1,290 @@
+{
+  "_metadata": {
+    "exported_at": "2025-11-29T15:06:11.038278Z",
+    "aws_region": "us-east-1",
+    "export_tool": "DynamoDB Schema Exporter",
+    "purpose": "Developer reference for database schema and sample data"
+  },
+  "table_schema": {
+    "table_name": "commercive_leads",
+    "table_status": "ACTIVE",
+    "creation_date": "2025-11-16T11:18:58.904000-05:00",
+    "item_count": 4,
+    "table_size_bytes": 1247,
+    "billing_mode": "PROVISIONED",
+    "key_schema": [
+      {
+        "attribute_name": "lead_id",
+        "key_type": "HASH",
+        "key_type_description": "Partition Key (HASH)"
+      }
+    ],
+    "attribute_definitions": [
+      {
+        "attribute_name": "affiliate_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "created_at",
+        "attribute_type": "N",
+        "attribute_type_description": "Number"
+      },
+      {
+        "attribute_name": "lead_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "link_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "status",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      }
+    ],
+    "global_secondary_indexes": [
+      {
+        "index_name": "status-created_at-index",
+        "index_status": "ACTIVE",
+        "item_count": 4,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "status",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "created_at",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      },
+      {
+        "index_name": "link_id-created_at-index",
+        "index_status": "ACTIVE",
+        "item_count": 4,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "link_id",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "created_at",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      },
+      {
+        "index_name": "affiliate_id-status-index",
+        "index_status": "ACTIVE",
+        "item_count": 4,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "affiliate_id",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "status",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      }
+    ],
+    "local_secondary_indexes": []
+  },
+  "inferred_attributes": [
+    {
+      "attribute_name": "pending_orders",
+      "inferred_type": "String (S)",
+      "sample_value": "100",
+      "nullable": true
+    },
+    {
+      "attribute_name": "created_at",
+      "inferred_type": "Number (N)",
+      "sample_value": 1764100477058,
+      "nullable": false
+    },
+    {
+      "attribute_name": "lead_name",
+      "inferred_type": "String (S)",
+      "sample_value": "Solomon Ezra",
+      "nullable": false
+    },
+    {
+      "attribute_name": "admin_notes",
+      "inferred_type": "String (S)",
+      "sample_value": "test",
+      "nullable": true
+    },
+    {
+      "attribute_name": "affiliate_id",
+      "inferred_type": "String (S)",
+      "sample_value": "AFF-YWGENOPM",
+      "nullable": false
+    },
+    {
+      "attribute_name": "status",
+      "inferred_type": "String (S)",
+      "sample_value": "approved",
+      "nullable": false
+    },
+    {
+      "attribute_name": "commission_amount",
+      "inferred_type": "Number (N)",
+      "sample_value": 1,
+      "nullable": true
+    },
+    {
+      "attribute_name": "link_id",
+      "inferred_type": "String (S)",
+      "sample_value": "AFF-YWGENOPM",
+      "nullable": false
+    },
+    {
+      "attribute_name": "updated_at",
+      "inferred_type": "Number (N)",
+      "sample_value": 1764101809108,
+      "nullable": false
+    },
+    {
+      "attribute_name": "product_link",
+      "inferred_type": "String (S)",
+      "sample_value": "https://www.commercive.co/",
+      "nullable": true
+    },
+    {
+      "attribute_name": "lead_phone",
+      "inferred_type": "String (S)",
+      "sample_value": "+19297645659",
+      "nullable": false
+    },
+    {
+      "attribute_name": "lead_email",
+      "inferred_type": "String (S)",
+      "sample_value": "solouprise@gmail.com",
+      "nullable": false
+    },
+    {
+      "attribute_name": "lead_id",
+      "inferred_type": "String (S)",
+      "sample_value": "LEAD-6CAF66A5",
+      "nullable": false
+    },
+    {
+      "attribute_name": "order_volume",
+      "inferred_type": "String (S)",
+      "sample_value": "20-100",
+      "nullable": true
+    },
+    {
+      "attribute_name": "business_name",
+      "inferred_type": "String (S)",
+      "sample_value": "r and r imports",
+      "nullable": true
+    },
+    {
+      "attribute_name": "business_type",
+      "inferred_type": "String (S)",
+      "sample_value": "ecommerce",
+      "nullable": true
+    },
+    {
+      "attribute_name": "monthly_revenue",
+      "inferred_type": "String (S)",
+      "sample_value": "10k-50k",
+      "nullable": true
+    }
+  ],
+  "sample_data": {
+    "record_count": 4,
+    "records": [
+      {
+        "pending_orders": "100",
+        "created_at": 1764100477058,
+        "lead_name": "Solomon Ezra",
+        "admin_notes": "test",
+        "affiliate_id": "AFF-YWGENOPM",
+        "status": "approved",
+        "commission_amount": 1,
+        "link_id": "AFF-YWGENOPM",
+        "updated_at": 1764101809108,
+        "product_link": "https://www.commercive.co/",
+        "lead_phone": "+19297645659",
+        "lead_email": "solouprise@gmail.com",
+        "lead_id": "LEAD-6CAF66A5",
+        "order_volume": "20-100"
+      },
+      {
+        "updated_at": 1763352973513,
+        "link_id": "3Y10P18N",
+        "pending_orders": "5",
+        "created_at": 1763352973513,
+        "lead_name": "arturo cardona test",
+        "product_link": "https://www.etsy.com/listing/1864584666/snowbasin-utah-souvenir-enhanced-matte",
+        "lead_phone": "15405201644",
+        "affiliate_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "status": "pending",
+        "lead_email": "ramonecardonna@gmail.com",
+        "lead_id": "b61647f8-d1fd-4167-9356-c997cd99c944",
+        "order_volume": "1-5"
+      },
+      {
+        "business_name": "r and r imports",
+        "updated_at": 1763337766489,
+        "link_id": "3Y10P18N",
+        "created_at": 1763337766489,
+        "lead_name": "ramon cardona test",
+        "business_type": "ecommerce",
+        "lead_phone": "15405201644",
+        "affiliate_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "monthly_revenue": "10k-50k",
+        "status": "pending",
+        "lead_email": "ramonemeza1989@gmail.com",
+        "lead_id": "84746c29-e230-4cae-8dc3-433b5ea4b7f7"
+      },
+      {
+        "updated_at": 1763790837026,
+        "link_id": "AFF-YWGENOPM",
+        "pending_orders": "2",
+        "created_at": 1763790837026,
+        "lead_name": "RAMON ARTURO CARDONA MEZA",
+        "product_link": "https://www.amazon.com/gp/product/B0G1FSZQT9",
+        "lead_phone": "15405201644",
+        "affiliate_id": "AFF-YWGENOPM",
+        "status": "pending",
+        "lead_email": "RAMONECARDONNA@GMAIL.COM",
+        "lead_id": "LEAD-43B2AD94",
+        "order_volume": "1-5"
+      }
+    ]
+  },
+  "_developer_notes": {
+    "key_schema_explanation": "HASH = Partition Key (required for all queries), RANGE = Sort Key (enables range queries)",
+    "gsi_explanation": "Global Secondary Indexes allow querying by non-primary-key attributes",
+    "billing_mode": "PAY_PER_REQUEST = On-demand pricing, PROVISIONED = Pre-allocated capacity",
+    "attribute_types": {
+      "S": "String",
+      "N": "Number (stored as string, interpreted as number)",
+      "B": "Binary",
+      "BOOL": "Boolean",
+      "NULL": "Null",
+      "M": "Map (nested object)",
+      "L": "List (array)",
+      "SS": "String Set",
+      "NS": "Number Set"
+    }
+  }
+}

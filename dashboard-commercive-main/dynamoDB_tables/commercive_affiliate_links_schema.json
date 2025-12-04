@@ -1,0 +1,214 @@
+{
+  "_metadata": {
+    "exported_at": "2025-11-29T15:06:11.001229Z",
+    "aws_region": "us-east-1",
+    "export_tool": "DynamoDB Schema Exporter",
+    "purpose": "Developer reference for database schema and sample data"
+  },
+  "table_schema": {
+    "table_name": "commercive_affiliate_links",
+    "table_status": "ACTIVE",
+    "creation_date": "2025-11-16T11:18:58.842000-05:00",
+    "item_count": 4,
+    "table_size_bytes": 746,
+    "billing_mode": "PROVISIONED",
+    "key_schema": [
+      {
+        "attribute_name": "link_id",
+        "key_type": "HASH",
+        "key_type_description": "Partition Key (HASH)"
+      }
+    ],
+    "attribute_definitions": [
+      {
+        "attribute_name": "affiliate_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "created_at",
+        "attribute_type": "N",
+        "attribute_type_description": "Number"
+      },
+      {
+        "attribute_name": "link_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      }
+    ],
+    "global_secondary_indexes": [
+      {
+        "index_name": "affiliate_id-created_at-index",
+        "index_status": "ACTIVE",
+        "item_count": 3,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "affiliate_id",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "created_at",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      }
+    ],
+    "local_secondary_indexes": []
+  },
+  "inferred_attributes": [
+    {
+      "attribute_name": "leads_submitted",
+      "inferred_type": "Number (N)",
+      "sample_value": 0,
+      "nullable": true
+    },
+    {
+      "attribute_name": "link_id",
+      "inferred_type": "String (S)",
+      "sample_value": "RYGCEV6D",
+      "nullable": false
+    },
+    {
+      "attribute_name": "affiliate_url",
+      "inferred_type": "String (S)",
+      "sample_value": "https://dashboard.commercive.co/affiliate-form?ref=RYGCEV6D",
+      "nullable": true
+    },
+    {
+      "attribute_name": "affiliate_email",
+      "inferred_type": "String (S)",
+      "sample_value": "jessicadams210@gmail.com",
+      "nullable": true
+    },
+    {
+      "attribute_name": "created_at",
+      "inferred_type": "Number (N)",
+      "sample_value": 1763330310702,
+      "nullable": true
+    },
+    {
+      "attribute_name": "affiliate_id",
+      "inferred_type": "String (S)",
+      "sample_value": "d92e5195-24a2-47dd-8182-48d58465ac28",
+      "nullable": true
+    },
+    {
+      "attribute_name": "clicks",
+      "inferred_type": "Number (N)",
+      "sample_value": 0,
+      "nullable": true
+    },
+    {
+      "attribute_name": "status",
+      "inferred_type": "String (S)",
+      "sample_value": "active",
+      "nullable": true
+    },
+    {
+      "attribute_name": "store_url",
+      "inferred_type": "String (S)",
+      "sample_value": "15gk40-vu.myshopify.com",
+      "nullable": true
+    },
+    {
+      "attribute_name": "leads_approved",
+      "inferred_type": "Number (N)",
+      "sample_value": 0,
+      "nullable": true
+    },
+    {
+      "attribute_name": "total_commission",
+      "inferred_type": "Number (N)",
+      "sample_value": 0,
+      "nullable": true
+    },
+    {
+      "attribute_name": "lead_count",
+      "inferred_type": "Number (N)",
+      "sample_value": 2,
+      "nullable": true
+    },
+    {
+      "attribute_name": "user_id",
+      "inferred_type": "String (S)",
+      "sample_value": "AFF-YWGENOPM",
+      "nullable": true
+    },
+    {
+      "attribute_name": "click_count",
+      "inferred_type": "Number (N)",
+      "sample_value": 0,
+      "nullable": true
+    },
+    {
+      "attribute_name": "conversion_count",
+      "inferred_type": "Number (N)",
+      "sample_value": 0,
+      "nullable": true
+    }
+  ],
+  "sample_data": {
+    "record_count": 4,
+    "records": [
+      {
+        "leads_submitted": 0,
+        "link_id": "RYGCEV6D",
+        "affiliate_url": "https://dashboard.commercive.co/affiliate-form?ref=RYGCEV6D",
+        "affiliate_email": "jessicadams210@gmail.com",
+        "created_at": 1763330310702,
+        "affiliate_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "clicks": 0,
+        "status": "active",
+        "store_url": "15gk40-vu.myshopify.com",
+        "leads_approved": 0,
+        "total_commission": 0
+      },
+      {
+        "lead_count": 2,
+        "link_id": "AFF-YWGENOPM"
+      },
+      {
+        "leads_submitted": 2,
+        "link_id": "3Y10P18N",
+        "affiliate_url": "https://dashboard.commercive.co/affiliate-form?ref=3Y10P18N",
+        "affiliate_email": "jessicadams210@gmail.com",
+        "created_at": 1763330309816,
+        "affiliate_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "clicks": 0,
+        "status": "active",
+        "store_url": "15gk40-vu.myshopify.com",
+        "leads_approved": 0,
+        "total_commission": 0
+      },
+      {
+        "link_id": "AFF-D0C0DC22",
+        "user_id": "AFF-YWGENOPM",
+        "created_at": 1763789130438,
+        "affiliate_id": "AFF-YWGENOPM",
+        "click_count": 0,
+        "status": "active",
+        "lead_count": 0,
+        "conversion_count": 0
+      }
+    ]
+  },
+  "_developer_notes": {
+    "key_schema_explanation": "HASH = Partition Key (required for all queries), RANGE = Sort Key (enables range queries)",
+    "gsi_explanation": "Global Secondary Indexes allow querying by non-primary-key attributes",
+    "billing_mode": "PAY_PER_REQUEST = On-demand pricing, PROVISIONED = Pre-allocated capacity",
+    "attribute_types": {
+      "S": "String",
+      "N": "Number (stored as string, interpreted as number)",
+      "B": "Binary",
+      "BOOL": "Boolean",
+      "NULL": "Null",
+      "M": "Map (nested object)",
+      "L": "List (array)",
+      "SS": "String Set",
+      "NS": "Number Set"
+    }
+  }
+}

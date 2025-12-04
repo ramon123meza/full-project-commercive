@@ -1,0 +1,171 @@
+{
+  "_metadata": {
+    "exported_at": "2025-11-29T15:06:10.959017Z",
+    "aws_region": "us-east-1",
+    "export_tool": "DynamoDB Schema Exporter",
+    "purpose": "Developer reference for database schema and sample data"
+  },
+  "table_schema": {
+    "table_name": "commercive_chat_messages",
+    "table_status": "ACTIVE",
+    "creation_date": "2025-11-16T11:18:58.780000-05:00",
+    "item_count": 26,
+    "table_size_bytes": 5273,
+    "billing_mode": "PROVISIONED",
+    "key_schema": [
+      {
+        "attribute_name": "message_id",
+        "key_type": "HASH",
+        "key_type_description": "Partition Key (HASH)"
+      }
+    ],
+    "attribute_definitions": [
+      {
+        "attribute_name": "conversation_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "created_at",
+        "attribute_type": "N",
+        "attribute_type_description": "Number"
+      },
+      {
+        "attribute_name": "message_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      }
+    ],
+    "global_secondary_indexes": [
+      {
+        "index_name": "conversation_id-created_at-index",
+        "index_status": "ACTIVE",
+        "item_count": 26,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "conversation_id",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "created_at",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      }
+    ],
+    "local_secondary_indexes": []
+  },
+  "inferred_attributes": [
+    {
+      "attribute_name": "sender_type",
+      "inferred_type": "String (S)",
+      "sample_value": "user",
+      "nullable": false
+    },
+    {
+      "attribute_name": "sender_id",
+      "inferred_type": "String (S)",
+      "sample_value": "d92e5195-24a2-47dd-8182-48d58465ac28",
+      "nullable": false
+    },
+    {
+      "attribute_name": "created_at",
+      "inferred_type": "Number (N)",
+      "sample_value": 1764101596984,
+      "nullable": false
+    },
+    {
+      "attribute_name": "conversation_id",
+      "inferred_type": "String (S)",
+      "sample_value": "CONV-B48FD176",
+      "nullable": false
+    },
+    {
+      "attribute_name": "is_read",
+      "inferred_type": "Boolean (BOOL)",
+      "sample_value": false,
+      "nullable": false
+    },
+    {
+      "attribute_name": "message_id",
+      "inferred_type": "String (S)",
+      "sample_value": "MSG-16C6EAA7",
+      "nullable": false
+    },
+    {
+      "attribute_name": "message_text",
+      "inferred_type": "String (S)",
+      "sample_value": "hello",
+      "nullable": false
+    }
+  ],
+  "sample_data": {
+    "record_count": 5,
+    "records": [
+      {
+        "sender_type": "user",
+        "sender_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1764101596984,
+        "conversation_id": "CONV-B48FD176",
+        "is_read": false,
+        "message_id": "MSG-16C6EAA7",
+        "message_text": "hello"
+      },
+      {
+        "sender_type": "user",
+        "sender_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763779622114,
+        "conversation_id": "43347b6c-636f-4a72-8cbf-a0cefb1189af",
+        "is_read": false,
+        "message_id": "6fe1df1a-7e63-4271-8107-594ff27d33de",
+        "message_text": "hello"
+      },
+      {
+        "sender_type": "user",
+        "sender_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763330219351,
+        "conversation_id": "23d8c9c3-5629-49fd-89a5-eef4ec84164b",
+        "is_read": false,
+        "message_id": "6f466155-452c-45da-b7b6-dc1e97b6a928",
+        "message_text": "hello there, this is a test request for help"
+      },
+      {
+        "sender_type": "user",
+        "sender_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763561603217,
+        "conversation_id": "c387f951-7014-4316-83a3-37f729dadd51",
+        "is_read": false,
+        "message_id": "0422c910-642e-4384-b58f-4a9c84a341e1",
+        "message_text": "hello"
+      },
+      {
+        "sender_type": "user",
+        "sender_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763779417618,
+        "conversation_id": "800f015b-8a09-497e-a4a9-285fbd8d9c95",
+        "is_read": false,
+        "message_id": "5ab7a673-ea7d-4a43-a93f-9dcf1a1947b5",
+        "message_text": "hello testing interface"
+      }
+    ]
+  },
+  "_developer_notes": {
+    "key_schema_explanation": "HASH = Partition Key (required for all queries), RANGE = Sort Key (enables range queries)",
+    "gsi_explanation": "Global Secondary Indexes allow querying by non-primary-key attributes",
+    "billing_mode": "PAY_PER_REQUEST = On-demand pricing, PROVISIONED = Pre-allocated capacity",
+    "attribute_types": {
+      "S": "String",
+      "N": "Number (stored as string, interpreted as number)",
+      "B": "Binary",
+      "BOOL": "Boolean",
+      "NULL": "Null",
+      "M": "Map (nested object)",
+      "L": "List (array)",
+      "SS": "String Set",
+      "NS": "Number Set"
+    }
+  }
+}

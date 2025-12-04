@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "exported_at": "2025-11-29T15:06:11.076890Z",
+    "aws_region": "us-east-1",
+    "total_tables": 5,
+    "successful_exports": 5
+  },
+  "tables_overview": [
+    {
+      "table_name": "commercive_chat_conversations",
+      "success": true,
+      "export_file": "commercive_chat_conversations_schema.json"
+    },
+    {
+      "table_name": "commercive_chat_messages",
+      "success": true,
+      "export_file": "commercive_chat_messages_schema.json"
+    },
+    {
+      "table_name": "commercive_affiliate_links",
+      "success": true,
+      "export_file": "commercive_affiliate_links_schema.json"
+    },
+    {
+      "table_name": "commercive_leads",
+      "success": true,
+      "export_file": "commercive_leads_schema.json"
+    },
+    {
+      "table_name": "commercive_affiliate_payments",
+      "success": true,
+      "export_file": "commercive_affiliate_payments_schema.json"
+    }
+  ],
+  "quick_reference": {
+    "table_relationships": {
+      "chat_conversations": "Parent table for chat sessions. Referenced by chat_messages via conversation_id",
+      "chat_messages": "Child of chat_conversations. Each message belongs to one conversation",
+      "affiliate_links": "Tracking links created by affiliates. Referenced by leads via link_id",
+      "leads": "Prospects/leads captured through affiliate links. Links to affiliate_links and tracks conversion status",
+      "affiliate_payments": "Payment records for affiliates based on converted leads"
+    },
+    "common_query_patterns": [
+      "Get all messages for a conversation: Query chat_messages GSI 'conversation_id-created_at-index'",
+      "Get user's conversations: Query chat_conversations GSI 'user_id-created_at-index'",
+      "Get affiliate's leads by status: Query leads GSI 'affiliate_id-status-index'",
+      "Get pending payments: Query affiliate_payments GSI 'status-created_at-index' with status='pending'"
+    ]
+  }
+}

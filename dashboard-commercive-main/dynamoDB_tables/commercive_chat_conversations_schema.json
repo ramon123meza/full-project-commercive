@@ -1,0 +1,239 @@
+{
+  "_metadata": {
+    "exported_at": "2025-11-29T15:06:10.918744Z",
+    "aws_region": "us-east-1",
+    "export_tool": "DynamoDB Schema Exporter",
+    "purpose": "Developer reference for database schema and sample data"
+  },
+  "table_schema": {
+    "table_name": "commercive_chat_conversations",
+    "table_status": "ACTIVE",
+    "creation_date": "2025-11-16T11:18:58.726000-05:00",
+    "item_count": 18,
+    "table_size_bytes": 4072,
+    "billing_mode": "PROVISIONED",
+    "key_schema": [
+      {
+        "attribute_name": "conversation_id",
+        "key_type": "HASH",
+        "key_type_description": "Partition Key (HASH)"
+      }
+    ],
+    "attribute_definitions": [
+      {
+        "attribute_name": "conversation_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "created_at",
+        "attribute_type": "N",
+        "attribute_type_description": "Number"
+      },
+      {
+        "attribute_name": "status",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "store_url",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      },
+      {
+        "attribute_name": "user_id",
+        "attribute_type": "S",
+        "attribute_type_description": "String"
+      }
+    ],
+    "global_secondary_indexes": [
+      {
+        "index_name": "status-created_at-index",
+        "index_status": "ACTIVE",
+        "item_count": 18,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "status",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "created_at",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      },
+      {
+        "index_name": "user_id-created_at-index",
+        "index_status": "ACTIVE",
+        "item_count": 18,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "user_id",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "created_at",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      },
+      {
+        "index_name": "store_url-status-index",
+        "index_status": "ACTIVE",
+        "item_count": 18,
+        "projection_type": "ALL",
+        "key_schema": [
+          {
+            "attribute_name": "store_url",
+            "key_type": "HASH",
+            "key_type_description": "Partition Key (HASH)"
+          },
+          {
+            "attribute_name": "status",
+            "key_type": "RANGE",
+            "key_type_description": "Sort Key (RANGE)"
+          }
+        ]
+      }
+    ],
+    "local_secondary_indexes": []
+  },
+  "inferred_attributes": [
+    {
+      "attribute_name": "unread_admin",
+      "inferred_type": "Number (N)",
+      "sample_value": 2,
+      "nullable": false
+    },
+    {
+      "attribute_name": "updated_at",
+      "inferred_type": "Number (N)",
+      "sample_value": 1763341854221,
+      "nullable": false
+    },
+    {
+      "attribute_name": "unread_user",
+      "inferred_type": "Number (N)",
+      "sample_value": 0,
+      "nullable": false
+    },
+    {
+      "attribute_name": "user_id",
+      "inferred_type": "String (S)",
+      "sample_value": "d92e5195-24a2-47dd-8182-48d58465ac28",
+      "nullable": false
+    },
+    {
+      "attribute_name": "created_at",
+      "inferred_type": "Number (N)",
+      "sample_value": 1763341854221,
+      "nullable": false
+    },
+    {
+      "attribute_name": "conversation_id",
+      "inferred_type": "String (S)",
+      "sample_value": "1df5c851-f606-4d22-b95c-f99fd4d84b8d",
+      "nullable": false
+    },
+    {
+      "attribute_name": "status",
+      "inferred_type": "String (S)",
+      "sample_value": "open",
+      "nullable": false
+    },
+    {
+      "attribute_name": "last_message",
+      "inferred_type": "String (S)",
+      "sample_value": "hello there this is a new test for requesting help",
+      "nullable": false
+    },
+    {
+      "attribute_name": "store_url",
+      "inferred_type": "String (S)",
+      "sample_value": "15gk40-vu.myshopify.com",
+      "nullable": false
+    }
+  ],
+  "sample_data": {
+    "record_count": 5,
+    "records": [
+      {
+        "unread_admin": 2,
+        "updated_at": 1763341854221,
+        "unread_user": 0,
+        "user_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763341854221,
+        "conversation_id": "1df5c851-f606-4d22-b95c-f99fd4d84b8d",
+        "status": "open",
+        "last_message": "hello there this is a new test for requesting help",
+        "store_url": "15gk40-vu.myshopify.com"
+      },
+      {
+        "unread_admin": 0,
+        "updated_at": 1764101596984,
+        "unread_user": 0,
+        "user_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763789145617,
+        "conversation_id": "CONV-B48FD176",
+        "status": "open",
+        "last_message": "hello",
+        "store_url": "15gk40-vu.myshopify.com"
+      },
+      {
+        "unread_admin": 0,
+        "updated_at": 1763778067161,
+        "unread_user": 0,
+        "user_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763348998629,
+        "conversation_id": "c387f951-7014-4316-83a3-37f729dadd51",
+        "status": "open",
+        "last_message": "hello",
+        "store_url": "15gk40-vu.myshopify.com"
+      },
+      {
+        "unread_admin": 2,
+        "updated_at": 1763781179367,
+        "unread_user": 0,
+        "user_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763781179367,
+        "conversation_id": "10c0d49f-e630-4e2e-a937-edbe35fe0961",
+        "status": "open",
+        "last_message": "hello there this is a test message",
+        "store_url": "greebie.myshopify.com"
+      },
+      {
+        "unread_admin": 2,
+        "updated_at": 1763779417618,
+        "unread_user": 0,
+        "user_id": "d92e5195-24a2-47dd-8182-48d58465ac28",
+        "created_at": 1763779417618,
+        "conversation_id": "800f015b-8a09-497e-a4a9-285fbd8d9c95",
+        "status": "open",
+        "last_message": "hello testing interface",
+        "store_url": "15gk40-vu.myshopify.com"
+      }
+    ]
+  },
+  "_developer_notes": {
+    "key_schema_explanation": "HASH = Partition Key (required for all queries), RANGE = Sort Key (enables range queries)",
+    "gsi_explanation": "Global Secondary Indexes allow querying by non-primary-key attributes",
+    "billing_mode": "PAY_PER_REQUEST = On-demand pricing, PROVISIONED = Pre-allocated capacity",
+    "attribute_types": {
+      "S": "String",
+      "N": "Number (stored as string, interpreted as number)",
+      "B": "Binary",
+      "BOOL": "Boolean",
+      "NULL": "Null",
+      "M": "Map (nested object)",
+      "L": "List (array)",
+      "SS": "String Set",
+      "NS": "Number Set"
+    }
+  }
+}

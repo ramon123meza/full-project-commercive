@@ -1,0 +1,208 @@
+import type { Config } from "tailwindcss";
+
+export default {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Primary Colors - Purple Theme
+        'indigo': {
+          DEFAULT: '#5B21B6',
+          50: '#F5F3FF',
+          100: '#EDE9FE',
+          200: '#DDD6FE',
+          300: '#C4B5FD',
+          400: '#A78BFA',
+          500: '#8e52f2',
+          600: '#7C3AED',
+          700: '#6D28D9',
+          800: '#5B21B6',
+          900: '#4C1D95',
+        },
+        'purple': {
+          DEFAULT: '#8e52f2',
+          50: '#F5F3FF',
+          100: '#EDE9FE',
+          200: '#DDD6FE',
+          300: '#C4B5FD',
+          400: '#A78BFA',
+          500: '#8e52f2',
+          600: '#7C3AED',
+          700: '#6D28D9',
+          800: '#5B21B6',
+          900: '#4C1D95',
+        },
+        'blue': {
+          DEFAULT: '#8e52f2',
+          50: '#F5F3FF',
+          100: '#EDE9FE',
+          200: '#DDD6FE',
+          300: '#C4B5FD',
+          400: '#A78BFA',
+          500: '#8e52f2',
+          600: '#7C3AED',
+          700: '#6D28D9',
+          800: '#5B21B6',
+          900: '#4C1D95',
+        },
+        // Secondary Colors
+        'sky': {
+          DEFAULT: '#EDE9FE',
+          50: '#FFFFFF',
+          100: '#FEFEFE',
+          200: '#FAF8FF',
+          300: '#F5F3FF',
+          400: '#EDE9FE',
+          500: '#DDD6FE',
+          600: '#C4B5FD',
+          700: '#A78BFA',
+          800: '#8B5CF6',
+          900: '#7C3AED',
+        },
+        'slate': {
+          DEFAULT: '#4B5563',
+          50: '#F9FAFB',
+          100: '#F3F4F6',
+          200: '#E5E7EB',
+          300: '#D1D5DB',
+          400: '#9CA3AF',
+          500: '#6B7280',
+          600: '#4B5563',
+          700: '#374151',
+          800: '#1F2937',
+          900: '#111827',
+        },
+        // Neutral Base
+        'gray': {
+          DEFAULT: '#F4F5F7',
+          50: '#FFFFFF',
+          100: '#FAFAFA',
+          200: '#F4F5F7',
+          300: '#E5E7EB',
+          400: '#D1D5DB',
+          500: '#9CA3AF',
+          600: '#6B7280',
+          700: '#4B5563',
+          800: '#374151',
+          900: '#1F2937',
+        },
+        'graphite': '#111827',
+        // Semantic Colors
+        'success': {
+          DEFAULT: '#10B981',
+          light: '#D1FAE5',
+        },
+        'warning': {
+          DEFAULT: '#F59E0B',
+          light: '#FEF3C7',
+        },
+        'error': {
+          DEFAULT: '#EF4444',
+          light: '#FEE2E2',
+        },
+        'info': {
+          DEFAULT: '#3B82F6',
+          light: '#DBEAFE',
+        },
+        // Legacy support
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+      },
+      fontFamily: {
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
+      fontSize: {
+        'display': ['3.5rem', { lineHeight: '1.1', fontWeight: '800', letterSpacing: '-0.02em' }],
+        'h1': ['2.5rem', { lineHeight: '1.2', fontWeight: '700', letterSpacing: '-0.01em' }],
+        'h2': ['2rem', { lineHeight: '1.25', fontWeight: '600' }],
+        'h3': ['1.5rem', { lineHeight: '1.3', fontWeight: '600' }],
+        'h4': ['1.25rem', { lineHeight: '1.4', fontWeight: '600' }],
+      },
+      boxShadow: {
+        'xs': '0 1px 2px 0 rgba(91, 33, 182, 0.05)',
+        'sm': '0 1px 3px 0 rgba(91, 33, 182, 0.1), 0 1px 2px -1px rgba(91, 33, 182, 0.1)',
+        'md': '0 4px 6px -1px rgba(91, 33, 182, 0.1), 0 2px 4px -2px rgba(91, 33, 182, 0.1)',
+        'lg': '0 10px 15px -3px rgba(91, 33, 182, 0.1), 0 4px 6px -4px rgba(91, 33, 182, 0.1)',
+        'xl': '0 20px 25px -5px rgba(91, 33, 182, 0.1), 0 8px 10px -6px rgba(91, 33, 182, 0.1)',
+        '2xl': '0 25px 50px -12px rgba(91, 33, 182, 0.25)',
+        'glow-purple': '0 0 20px rgba(142, 82, 242, 0.3)',
+        'glow-blue': '0 0 20px rgba(142, 82, 242, 0.3)',
+        'glow-indigo': '0 0 30px rgba(91, 33, 182, 0.2)',
+      },
+      borderRadius: {
+        'sm': '0.375rem',
+        'md': '0.5rem',
+        'lg': '0.75rem',
+        'xl': '1rem',
+        '2xl': '1.5rem',
+        '3xl': '2rem',
+      },
+      backgroundImage: {
+        'gradient-primary': 'linear-gradient(135deg, #5B21B6 0%, #8e52f2 100%)',
+        'gradient-hero': 'linear-gradient(135deg, #5B21B6 0%, #7C3AED 50%, #8e52f2 100%)',
+        'gradient-card': 'linear-gradient(180deg, #FFFFFF 0%, #F8F7FC 100%)',
+        'gradient-sky': 'linear-gradient(135deg, #EDE9FE 0%, #F5F3FF 100%)',
+        'gradient-purple': 'linear-gradient(135deg, #8e52f2 0%, #A78BFA 100%)',
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-out forwards',
+        'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+        'fade-in-down': 'fadeInDown 0.5s ease-out forwards',
+        'slide-in-left': 'slideInLeft 0.5s ease-out forwards',
+        'slide-in-right': 'slideInRight 0.5s ease-out forwards',
+        'scale-in': 'scaleIn 0.3s ease-out forwards',
+        'float': 'float 3s ease-in-out infinite',
+        'shimmer': 'shimmer 1.5s infinite',
+        'gradient-flow': 'gradientFlow 15s ease infinite',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        fadeInDown: {
+          '0%': { opacity: '0', transform: 'translateY(-20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInLeft: {
+          '0%': { opacity: '0', transform: 'translateX(-30px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        slideInRight: {
+          '0%': { opacity: '0', transform: 'translateX(30px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.9)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        gradientFlow: {
+          '0%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+          '100%': { backgroundPosition: '0% 50%' },
+        },
+      },
+      transitionTimingFunction: {
+        'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      },
+    },
+  },
+  plugins: [],
+} satisfies Config;

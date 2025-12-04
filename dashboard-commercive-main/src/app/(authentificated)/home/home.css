@@ -1,0 +1,6 @@
+.MuiFormControl-root {
+  position: absolute;
+  visibility: collapse;
+  width: 0;
+  left: -250;
+}
