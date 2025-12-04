@@ -18,15 +18,16 @@ select
   r.client_niche,
   r.client_group,
   acs.uid,
-  acs.commission_method,
-  acs.commission_rate,
+  coalesce(acs.commission_method, 2) as commission_method,
+  coalesce(acs.commission_rate, 0.01) as commission_rate,
   acs.affiliate,
   acs.customer_id,
   afs.user_id,
   case
     when acs.commission_method = 1 then acs.commission_rate * r.quantity_of_order::numeric
     when acs.commission_method = 2 then acs.commission_rate * r.invoice_total
-    else 0::numeric
+    -- Default: 1% of invoice_total when no commission setting exists
+    else 0.01 * r.invoice_total
   end as total_commission
 from
   referrals r

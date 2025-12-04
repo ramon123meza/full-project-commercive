@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { createClient } from "@/app/utils/supabase/client";
 import { redirect, usePathname } from "next/navigation";
 import Header from "@/components/header";
@@ -8,6 +8,9 @@ import Sidebar from "@/components/sidebar";
 import LabelBottomNavigation from "@/components/bottom-navigation";
 import { Flip, ToastContainer } from "react-toastify";
 import { AffiliateRequestRow, StoreRow, UserRow } from "@/app/utils/types";
+
+// LocalStorage key for persisting selected store
+const SELECTED_STORE_KEY = "commercive_selected_store_id";
 
 interface StoreContextProps {
   userinfo?: UserRow;
@@ -24,6 +27,31 @@ interface StoreContextProps {
 }
 
 const StoreContext = createContext<StoreContextProps | undefined>(undefined);
+
+// Helper to get stored store ID from localStorage
+const getStoredStoreId = (): number | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(SELECTED_STORE_KEY);
+    return stored ? parseInt(stored, 10) : null;
+  } catch {
+    return null;
+  }
+};
+
+// Helper to save store ID to localStorage
+const saveStoreId = (storeId: number | null) => {
+  if (typeof window === "undefined") return;
+  try {
+    if (storeId !== null) {
+      localStorage.setItem(SELECTED_STORE_KEY, storeId.toString());
+    } else {
+      localStorage.removeItem(SELECTED_STORE_KEY);
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+};
 
 export const StoreProvider: React.FC<{
   initialUserinfo?: UserRow;
@@ -89,7 +117,20 @@ export const StoreProvider: React.FC<{
 
     if (userStores && userStores?.length > 0) {
       setStores(userStores);
+
+      // Try to restore previously selected store from localStorage
+      const storedStoreId = getStoredStoreId();
+      if (storedStoreId !== null) {
+        const previouslySelected = userStores.find((s: StoreRow) => s.id === storedStoreId);
+        if (previouslySelected) {
+          setSelectedStore(previouslySelected);
+          return;
+        }
+      }
+
+      // Fall back to first store if no stored selection or stored store not found
       setSelectedStore(userStores[0]);
+      saveStoreId(userStores[0].id);
     } else {
       setStores([]);
       // Don't redirect if on admin pages - admin users might not have stores
@@ -105,6 +146,13 @@ export const StoreProvider: React.FC<{
       fetchStoreData();
     }
   }, [userinfo?.id]);
+
+  // Persist selected store to localStorage when it changes
+  useEffect(() => {
+    if (selectedStore?.id) {
+      saveStoreId(selectedStore.id);
+    }
+  }, [selectedStore?.id]);
 
   // For public pages (no user), just render children with minimal context
   if (!userinfo) {
