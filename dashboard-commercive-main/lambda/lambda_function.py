@@ -14,16 +14,23 @@ import json
 import boto3
 import uuid
 import time
+import os
+import urllib.request
+import urllib.error
 from decimal import Decimal
-from typing import Dict, Any
+from typing import Dict, Any, List
 from botocore.exceptions import ClientError
 
 # Configuration
 AWS_REGION = "us-east-1"
 TABLE_PREFIX = "commercive_"
+ADMIN_EMAIL = "ramoncitomeza1989@gmail.com"
+SES_SENDER_EMAIL = "noreply@commercive.co"
+OPENAI_API_KEY_ENV = "OPENAI_API_KEY"  # Set this in Lambda environment variables
 
-# Initialize DynamoDB
+# Initialize AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+ses_client = boto3.client('ses', region_name=AWS_REGION)
 
 # Tables - Core
 chat_conversations_table = dynamodb.Table(f"{TABLE_PREFIX}chat_conversations")
@@ -119,6 +126,237 @@ def safe_query_with_gsi(table, index_name, key_condition_expression, expression_
 
 
 # =============================================================================
+# EMAIL NOTIFICATION FUNCTIONS
+# =============================================================================
+
+def send_lead_notification_email(lead_data: Dict[str, Any], affiliate_id: str) -> bool:
+    """Send email notification when a new lead is submitted"""
+    try:
+        lead_name = lead_data.get('name', 'Unknown')
+        lead_email = lead_data.get('email', 'No email provided')
+        lead_phone = lead_data.get('phone', 'No phone provided')
+        product_link = lead_data.get('product_link', 'Not provided')
+        order_volume = lead_data.get('order_volume', 'Not specified')
+        pending_orders = lead_data.get('pending_orders', 'Not specified')
+
+        subject = f"New Lead Submission from {lead_name}"
+
+        html_body = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #5B21B6 0%, #8e52f2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+                .content {{ background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }}
+                .field {{ margin-bottom: 15px; }}
+                .label {{ font-weight: bold; color: #5B21B6; }}
+                .value {{ margin-top: 5px; padding: 10px; background: white; border-radius: 4px; border-left: 3px solid #8e52f2; }}
+                .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0;">🎉 New Lead Received!</h1>
+                    <p style="margin: 10px 0 0 0;">A new potential client has submitted their information</p>
+                </div>
+                <div class="content">
+                    <div class="field">
+                        <div class="label">👤 Contact Name</div>
+                        <div class="value">{lead_name}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">📧 Email Address</div>
+                        <div class="value">{lead_email}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">📱 Phone Number</div>
+                        <div class="value">{lead_phone}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">🔗 Product Link</div>
+                        <div class="value">{product_link}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">📦 Expected Order Volume</div>
+                        <div class="value">{order_volume}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">⏳ Pending Orders</div>
+                        <div class="value">{pending_orders}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">🤝 Referred By Affiliate</div>
+                        <div class="value">{affiliate_id}</div>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>This lead was submitted through the Commercive affiliate referral system.</p>
+                    <p>Please review and follow up within 24 hours for best results.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        text_body = f"""
+        New Lead Submission
+        ===================
+
+        Contact Name: {lead_name}
+        Email: {lead_email}
+        Phone: {lead_phone}
+        Product Link: {product_link}
+        Expected Order Volume: {order_volume}
+        Pending Orders: {pending_orders}
+        Referred By Affiliate: {affiliate_id}
+
+        --
+        This lead was submitted through the Commercive affiliate referral system.
+        """
+
+        ses_client.send_email(
+            Source=SES_SENDER_EMAIL,
+            Destination={
+                'ToAddresses': [ADMIN_EMAIL],
+            },
+            Message={
+                'Subject': {
+                    'Data': subject,
+                    'Charset': 'UTF-8'
+                },
+                'Body': {
+                    'Text': {
+                        'Data': text_body,
+                        'Charset': 'UTF-8'
+                    },
+                    'Html': {
+                        'Data': html_body,
+                        'Charset': 'UTF-8'
+                    }
+                }
+            }
+        )
+
+        print(f"[SES] Lead notification email sent successfully to {ADMIN_EMAIL}")
+        return True
+
+    except ClientError as e:
+        print(f"[SES] Error sending email: {e.response['Error']['Message']}")
+        return False
+    except Exception as e:
+        print(f"[SES] Unexpected error sending email: {str(e)}")
+        return False
+
+
+# =============================================================================
+# AI CHATBOT FUNCTIONS (OpenAI Integration)
+# =============================================================================
+
+# System context for AI chatbot
+AI_SYSTEM_CONTEXT = """You are a helpful customer support assistant for Commercive, a fulfillment and e-commerce logistics company.
+
+About Commercive:
+- We provide order fulfillment services for Shopify store owners
+- We offer inventory management and tracking solutions
+- We have an affiliate program where partners can earn commissions
+- We ship to 65+ countries worldwide
+- We offer 99.9% SLA performance
+- We have processed over 8 million orders
+
+You can help users with:
+- General questions about our services
+- Information about shipping and tracking
+- Questions about the affiliate program
+- Basic account and dashboard questions
+- Inventory management inquiries
+
+Guidelines:
+- Be friendly, professional, and concise
+- If you don't know something specific, offer to connect them with a human representative
+- Always be helpful and solution-oriented
+- Keep responses under 200 words unless more detail is needed
+- If the user needs specific account help or has complex issues, recommend they request human assistance
+
+When a user wants to speak with a human, say something like: "I understand you'd like to speak with a human representative. Please type 'CONNECT TO REPRESENTATIVE' and our support team will be notified to assist you directly."
+"""
+
+def call_openai_api(messages: List[Dict[str, str]]) -> str:
+    """Make a REST API call to OpenAI without using the SDK"""
+    try:
+        api_key = os.environ.get(OPENAI_API_KEY_ENV)
+        if not api_key:
+            print("[AI] OpenAI API key not configured")
+            return "I apologize, but the AI assistant is currently unavailable. Please type 'CONNECT TO REPRESENTATIVE' to speak with a human support agent."
+
+        url = "https://api.openai.com/v1/chat/completions"
+
+        payload = {
+            "model": "gpt-3.5-turbo",
+            "messages": messages,
+            "max_tokens": 500,
+            "temperature": 0.7
+        }
+
+        data = json.dumps(payload).encode('utf-8')
+
+        request = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }
+        )
+
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            return result['choices'][0]['message']['content']
+
+    except urllib.error.HTTPError as e:
+        print(f"[AI] OpenAI API HTTP error: {e.code} - {e.reason}")
+        return "I apologize, but I'm having trouble processing your request. Please type 'CONNECT TO REPRESENTATIVE' if you need immediate assistance."
+    except Exception as e:
+        print(f"[AI] Error calling OpenAI: {str(e)}")
+        return "I apologize, but I'm having trouble responding right now. Would you like to speak with a human representative? Just type 'CONNECT TO REPRESENTATIVE'."
+
+
+def get_ai_response(user_message: str, conversation_history: List[Dict[str, Any]] = None) -> str:
+    """Get AI response for a user message"""
+    try:
+        # Check for human handoff request
+        handoff_phrases = ['connect to representative', 'human', 'speak to someone', 'real person', 'agent', 'support team', 'talk to human']
+        if any(phrase in user_message.lower() for phrase in handoff_phrases):
+            return "I've noted your request to speak with a human representative. Our support team has been notified and will respond to this conversation shortly. In the meantime, is there anything else I can help you with?"
+
+        # Build messages array
+        messages = [
+            {"role": "system", "content": AI_SYSTEM_CONTEXT}
+        ]
+
+        # Add conversation history if available (last 10 messages for context)
+        if conversation_history:
+            for msg in conversation_history[-10:]:
+                role = "user" if msg.get('sender_type') == 'user' else "assistant"
+                messages.append({
+                    "role": role,
+                    "content": msg.get('message_text', '')
+                })
+
+        # Add current user message
+        messages.append({"role": "user", "content": user_message})
+
+        # Call OpenAI
+        response = call_openai_api(messages)
+        return response
+
+    except Exception as e:
+        print(f"[AI] Error in get_ai_response: {str(e)}")
+        return "I'm sorry, I encountered an issue. Would you like to speak with a human representative?"
+
+
+# =============================================================================
 # CHAT ENDPOINTS
 # =============================================================================
 
@@ -169,45 +407,62 @@ def get_conversation_messages(params: Dict[str, str]) -> Dict[str, Any]:
 
 
 def send_chat_message(body: Dict[str, Any]) -> Dict[str, Any]:
-    """POST /chat/send"""
+    """POST /chat/send - Send message and optionally get AI response"""
     try:
         user_id = body.get('user_id')
         store_url = body.get('store_url', '')
         message_text = body.get('message')
         conversation_id = body.get('conversation_id')
+        enable_ai = body.get('enable_ai', True)  # Enable AI by default
+        request_human = body.get('request_human', False)  # User wants human support
 
         if not user_id or not message_text:
             return simple_response(400, {'error': 'Missing required fields: user_id, message'})
 
         now = current_timestamp()
+        is_new_conversation = False
 
         # Create new conversation if needed
         if not conversation_id:
+            is_new_conversation = True
             conversation_id = generate_id('CONV-')
             chat_conversations_table.put_item(Item={
                 'conversation_id': conversation_id,
                 'user_id': user_id,
                 'store_url': store_url,
                 'status': 'open',
+                'ai_enabled': enable_ai,
+                'human_requested': request_human,
                 'created_at': now,
                 'updated_at': now,
                 'last_message': message_text[:100],
-                'unread_admin': 1,
+                'unread_admin': 1 if request_human else 0,
                 'unread_user': 0
             })
         else:
             # Update existing conversation
+            update_expr = 'SET updated_at = :now, last_message = :msg'
+            expr_values = {
+                ':now': now,
+                ':msg': message_text[:100]
+            }
+
+            # Only increment unread_admin if human requested or AI not enabled
+            if request_human or not enable_ai:
+                update_expr += ', unread_admin = unread_admin + :one'
+                expr_values[':one'] = 1
+
+            if request_human:
+                update_expr += ', human_requested = :human'
+                expr_values[':human'] = True
+
             chat_conversations_table.update_item(
                 Key={'conversation_id': conversation_id},
-                UpdateExpression='SET updated_at = :now, last_message = :msg, unread_admin = unread_admin + :one',
-                ExpressionAttributeValues={
-                    ':now': now,
-                    ':msg': message_text[:100],
-                    ':one': 1
-                }
+                UpdateExpression=update_expr,
+                ExpressionAttributeValues=expr_values
             )
 
-        # Create message
+        # Create user message
         message_id = generate_id('MSG-')
         chat_messages_table.put_item(Item={
             'message_id': message_id,
@@ -219,10 +474,72 @@ def send_chat_message(body: Dict[str, Any]) -> Dict[str, Any]:
             'is_read': False
         })
 
+        ai_response = None
+        ai_message_id = None
+
+        # Generate AI response if enabled and not requesting human
+        if enable_ai and not request_human:
+            # Check if user is requesting human support
+            handoff_phrases = ['connect to representative', 'human', 'speak to someone', 'real person', 'agent', 'support team', 'talk to human']
+            if any(phrase in message_text.lower() for phrase in handoff_phrases):
+                # Mark conversation for human follow-up
+                chat_conversations_table.update_item(
+                    Key={'conversation_id': conversation_id},
+                    UpdateExpression='SET human_requested = :true, unread_admin = unread_admin + :one',
+                    ExpressionAttributeValues={':true': True, ':one': 1}
+                )
+                ai_response = "I've noted your request to speak with a human representative. Our support team has been notified and will respond to this conversation shortly. In the meantime, is there anything else I can help you with?"
+            else:
+                # Get conversation history for context
+                try:
+                    history_response = safe_query_with_gsi(
+                        table=chat_messages_table,
+                        index_name='conversation_id-created_at-index',
+                        key_condition_expression='conversation_id = :cid',
+                        expression_attribute_values={':cid': conversation_id},
+                        ScanIndexForward=True,
+                        Limit=20
+                    )
+                    conversation_history = history_response.get('Items', [])
+                except Exception as e:
+                    print(f"[AI] Error fetching history: {str(e)}")
+                    conversation_history = []
+
+                # Get AI response
+                ai_response = get_ai_response(message_text, conversation_history)
+
+            # Save AI response as a message
+            if ai_response:
+                ai_now = current_timestamp()
+                ai_message_id = generate_id('MSG-')
+                chat_messages_table.put_item(Item={
+                    'message_id': ai_message_id,
+                    'conversation_id': conversation_id,
+                    'sender_type': 'ai',
+                    'sender_id': 'ai-assistant',
+                    'message_text': ai_response,
+                    'created_at': ai_now,
+                    'is_read': False
+                })
+
+                # Update conversation with AI response
+                chat_conversations_table.update_item(
+                    Key={'conversation_id': conversation_id},
+                    UpdateExpression='SET updated_at = :now, last_message = :msg, unread_user = unread_user + :one',
+                    ExpressionAttributeValues={
+                        ':now': ai_now,
+                        ':msg': ai_response[:100],
+                        ':one': 1
+                    }
+                )
+
         return simple_response(200, {
             'success': True,
             'conversation_id': conversation_id,
-            'message_id': message_id
+            'message_id': message_id,
+            'ai_response': ai_response,
+            'ai_message_id': ai_message_id,
+            'is_new_conversation': is_new_conversation
         })
 
     except Exception as e:
@@ -624,6 +941,13 @@ def submit_lead(body: Dict[str, Any]) -> Dict[str, Any]:
             )
         except Exception as e:
             print(f"Error updating link stats: {str(e)}")
+
+        # Send email notification to admin
+        try:
+            email_sent = send_lead_notification_email(lead_data, affiliate_id)
+            print(f"[Lead] Email notification sent: {email_sent}")
+        except Exception as e:
+            print(f"[Lead] Error sending notification email (non-fatal): {str(e)}")
 
         return simple_response(200, {
             'success': True,

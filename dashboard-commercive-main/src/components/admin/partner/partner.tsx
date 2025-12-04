@@ -48,17 +48,20 @@ const colors = {
 };
 
 const defaultHeaders = [
-  "time",
-  "affiliate_commission",
-  "customer_number",
+  "order_date",
+  "business_type",
+  "client_country",
+  "customer_code",
   "store_name",
-  "commission_rate",
+  "client_niche",
+  "client_group",
+  "affiliate_name",
   "affiliate_id",
-  "order_number",
+  "commission_per_order",
+  "commission_type",
+  "order_number_range",
   "quantity_of_orders",
-  "quantity_of_products",
   "invoice_total",
-  "total_commission",
 ];
 
 type ReferralInsert = Database["public"]["Tables"]["referrals"]["Insert"];
@@ -629,15 +632,19 @@ export default function Partner() {
         });
         parsedData.shift();
         const sanitizedData = parsedData.map((row) => ({
-          order_time: excelToTimestampZ(parseInt(row["time"])),
+          order_time: row["order_date"] ? (typeof row["order_date"] === 'number' ? excelToTimestampZ(parseInt(row["order_date"])) : row["order_date"]) : new Date().toISOString(),
           store_name: row["store_name"] || "",
-          order_number: row["order_number"] || "",
+          order_number: row["order_number_range"] || "",
           quantity_of_order: Number(row["quantity_of_orders"]) || 0,
-          customer_number: row["customer_number"],
-          uuid: `${row["customer_number"]}-${row["order_number"]}`,
-          agent_name: agentID!,
-          affiliate_id: row["affiliate_id"],
+          customer_number: row["customer_code"] || "",
+          uuid: `${row["customer_code"]}-${row["order_number_range"]}`,
+          agent_name: row["affiliate_name"] || agentID || "",
+          affiliate_id: row["affiliate_id"] || "",
           invoice_total: Number(row["invoice_total"] || 0),
+          business_type: row["business_type"] || null,
+          client_country: row["client_country"] || null,
+          client_niche: row["client_niche"] || null,
+          client_group: row["client_group"] || null,
         }));
 
         const uuidMap = new Map<string, number>();
@@ -1645,46 +1652,55 @@ export default function Partner() {
               onClick={() => {
                 // Create CSV template content
                 const templateHeaders = [
-                  "time",
-                  "affiliate_commission",
-                  "customer_number",
+                  "order_date",
+                  "business_type",
+                  "client_country",
+                  "customer_code",
                   "store_name",
-                  "commission_rate",
+                  "client_niche",
+                  "client_group",
+                  "affiliate_name",
                   "affiliate_id",
-                  "order_number",
+                  "commission_per_order",
+                  "commission_type",
+                  "order_number_range",
                   "quantity_of_orders",
-                  "quantity_of_products",
-                  "invoice_total",
-                  "total_commission"
+                  "invoice_total"
                 ];
                 const exampleRow = [
                   "2024-01-15",
-                  "per_order",
+                  "E-commerce",
+                  "USA",
                   "CUST001",
                   "Example Store",
-                  "1.00",
+                  "Fashion",
+                  "Premium",
+                  "John Doe",
                   "AFF-12345678",
+                  "1.00",
+                  "per_order",
                   "ORD-001",
                   "1",
-                  "5",
-                  "150.00",
-                  "1.00"
+                  "150.00"
                 ];
                 const csvContent = [
                   templateHeaders.join(","),
                   exampleRow.join(","),
                   "# Instructions:",
-                  "# time: Date in YYYY-MM-DD format or Excel serial number",
-                  "# affiliate_commission: 'per_order' for fixed amount or 'percentage' for % of invoice",
-                  "# customer_number: Customer identifier (code, not store name)",
-                  "# store_name: Store name (will be hidden from affiliates)",
-                  "# commission_rate: Amount ($) for per_order, or decimal (0.01 = 1%) for percentage",
+                  "# order_date: Date in YYYY-MM-DD format or Excel serial number",
+                  "# business_type: Type of business (E-commerce, Retail, etc.)",
+                  "# client_country: Client's country",
+                  "# customer_code: Customer identifier (code, not store name)",
+                  "# store_name: Store name",
+                  "# client_niche: Business niche or category",
+                  "# client_group: Client group classification",
+                  "# affiliate_name: Affiliate's name",
                   "# affiliate_id: Affiliate ID in format AFF-XXXXXXXX",
-                  "# order_number: Unique order identifier",
+                  "# commission_per_order: Commission rate - Amount ($) for per_order, or decimal (0.01 = 1%) for percentage",
+                  "# commission_type: 'per_order' for fixed amount or 'percentage' for % of invoice",
+                  "# order_number_range: Unique order identifier",
                   "# quantity_of_orders: Number of orders",
-                  "# quantity_of_products: Total products in order",
-                  "# invoice_total: Order total amount",
-                  "# total_commission: Calculated commission (auto-calculated if blank)"
+                  "# invoice_total: Order total amount"
                 ].join("\n");
 
                 const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

@@ -22,7 +22,7 @@ const POLL_INTERVAL = 10000; // 10 seconds
 interface Message {
   message_id: string;
   conversation_id: string;
-  sender_type: "user" | "admin";
+  sender_type: "user" | "admin" | "ai";
   sender_id: string;
   message_text: string;
   created_at: number;
@@ -155,7 +155,10 @@ export default function ChatInterface() {
       return;
     }
 
+    const messageToSend = newMessage;
+    setNewMessage(""); // Clear input immediately for better UX
     setSending(true);
+
     try {
       const response = await fetch(LAMBDA_URL, {
         method: "POST",
@@ -164,18 +167,17 @@ export default function ChatInterface() {
           action: "chat/send",
           user_id: userinfo.id,
           store_url: selectedStore.store_url,
-          message: newMessage,
+          message: messageToSend,
           conversation_id: selectedConversation?.conversation_id,
+          enable_ai: true, // Enable AI responses
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setNewMessage("");
-
         // If this was a new conversation, update selected conversation
-        if (!selectedConversation) {
+        if (!selectedConversation || data.is_new_conversation) {
           const newConv: Conversation = {
             conversation_id: data.conversation_id,
             user_id: userinfo.id,
@@ -183,15 +185,17 @@ export default function ChatInterface() {
             status: "open",
             created_at: Date.now(),
             updated_at: Date.now(),
-            last_message: newMessage,
-            unread_admin: 1,
-            unread_user: 0,
+            last_message: data.ai_response || messageToSend,
+            unread_admin: 0,
+            unread_user: data.ai_response ? 1 : 0,
           };
           setSelectedConversation(newConv);
-          setConversations((prev) => [newConv, ...prev]);
+          if (data.is_new_conversation) {
+            setConversations((prev) => [newConv, ...prev.filter(c => c.conversation_id !== data.conversation_id)]);
+          }
         }
 
-        // Refresh messages
+        // Refresh messages to include user message and AI response
         const convId = selectedConversation?.conversation_id || data.conversation_id;
         if (convId) {
           await fetchMessages(convId, false);
@@ -199,9 +203,13 @@ export default function ChatInterface() {
 
         // Refresh conversations list
         await fetchConversations();
+      } else {
+        // Restore message if send failed
+        setNewMessage(messageToSend);
       }
     } catch (error) {
       console.error("Error sending message:", error);
+      setNewMessage(messageToSend); // Restore message on error
     } finally {
       setSending(false);
     }
@@ -433,32 +441,39 @@ export default function ChatInterface() {
             <div className="chat-header flex-shrink-0">
               <h2 className="font-semibold text-lg">New Conversation</h2>
               <p className="text-white/70 text-small">
-                Send a message to start chatting with our support team
+                Chat with our AI assistant or request human support
               </p>
             </div>
 
             <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto" style={{ minHeight: 0 }}>
               <div className="text-center max-w-md">
-                <div className="empty-state-icon mx-auto mb-6" style={{ width: 100, height: 100 }}>
+                <div className="empty-state-icon mx-auto mb-6 bg-gradient-to-br from-purple-500 to-indigo-600" style={{ width: 100, height: 100 }}>
                   <IoChatbubbleEllipsesOutline size={48} />
                 </div>
                 <h3 className="text-h4 text-[var(--primary-indigo)] mb-2">
-                  Start a Conversation
+                  Chat with Our AI Assistant
                 </h3>
                 <p className="text-[var(--secondary-slate)] mb-6">
-                  Our support team is here to help. Type your message below and
-                  we will get back to you as soon as possible.
+                  Get instant answers from our AI assistant! For complex issues,
+                  type &quot;connect to representative&quot; to speak with our support team.
                 </p>
-                <div className="flex items-center justify-center gap-6 text-small text-[var(--secondary-slate)]">
+                <div className="flex flex-wrap items-center justify-center gap-4 text-small text-[var(--secondary-slate)]">
                   <div className="flex items-center gap-2">
                     <IoCheckmarkDone className="text-green-500" size={18} />
-                    <span>Quick responses</span>
+                    <span>Instant AI responses</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <IoCheckmarkDone className="text-green-500" size={18} />
-                    <span>Expert support</span>
+                    <span>24/7 availability</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <IoCheckmarkDone className="text-green-500" size={18} />
+                    <span>Human support on request</span>
                   </div>
                 </div>
+                <p className="text-tiny text-gray-400 mt-4">
+                  Powered by AI with human backup support
+                </p>
               </div>
             </div>
 
@@ -564,18 +579,33 @@ export default function ChatInterface() {
                           className={`avatar avatar-sm flex-shrink-0 ${
                             msg.sender_type === "user"
                               ? "bg-[var(--primary-blue)]"
+                              : msg.sender_type === "ai"
+                              ? "bg-gradient-to-br from-purple-500 to-indigo-600"
                               : "bg-[var(--secondary-slate)]"
                           }`}
                         >
-                          {msg.sender_type === "user" ? "U" : "S"}
+                          {msg.sender_type === "user" ? "U" : msg.sender_type === "ai" ? "AI" : "S"}
                         </div>
 
                         {/* Message Content */}
                         <div className="flex flex-col">
+                          {/* Sender label for AI messages */}
+                          {msg.sender_type === "ai" && (
+                            <span className="text-tiny text-purple-600 font-medium mb-1">
+                              AI Assistant
+                            </span>
+                          )}
+                          {msg.sender_type === "admin" && (
+                            <span className="text-tiny text-gray-500 font-medium mb-1">
+                              Support Team
+                            </span>
+                          )}
                           <div
                             className={`chat-message ${
                               msg.sender_type === "user"
                                 ? "chat-message-user"
+                                : msg.sender_type === "ai"
+                                ? "chat-message-admin bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100"
                                 : "chat-message-admin"
                             }`}
                           >

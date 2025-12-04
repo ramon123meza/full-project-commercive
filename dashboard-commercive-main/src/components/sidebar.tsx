@@ -28,6 +28,7 @@ import {
   HiUserCircle,
   HiBuildingStorefront,
   HiClipboardDocumentList,
+  HiUserPlus,
 } from "react-icons/hi2";
 
 // Types
@@ -45,8 +46,7 @@ interface NavItem {
 // Navigation configurations
 const userNavItems: NavItem[] = [
   { title: "Dashboard", href: "/home", icon: <HiHome size={20} /> },
-  { title: "Inventory", href: "/inventory", icon: <HiCube size={20} /> },
-  { title: "Restock Analysis", href: "/restock", icon: <HiClipboardDocumentList size={20} /> },
+  { title: "Inventory Management", href: "/inventory-management", icon: <HiCube size={20} /> },
   { title: "Shipments", href: "/shipments", icon: <HiTruck size={20} /> },
   { title: "Support", href: "/support", icon: <HiChatBubbleLeftRight size={20} /> },
   { title: "Partners", href: "/commercive-partners", icon: <HiUserGroup size={20} /> },
@@ -55,6 +55,7 @@ const userNavItems: NavItem[] = [
 
 const adminNavItems: NavItem[] = [
   { title: "Admin Dashboard", href: "/admin/home", icon: <HiHome size={20} /> },
+  { title: "Pending Approvals", href: "/admin/pending-accounts", icon: <HiUserPlus size={20} /> },
   { title: "Stores Management", href: "/admin/stores", icon: <HiBuildingStorefront size={20} /> },
   { title: "Users & Roles", href: "/admin/roles", icon: <HiUsers size={20} /> },
   { title: "Leads", href: "/admin/leads", icon: <HiClipboardDocumentList size={20} /> },

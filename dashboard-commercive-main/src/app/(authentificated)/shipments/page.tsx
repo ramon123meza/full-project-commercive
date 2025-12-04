@@ -218,7 +218,7 @@ export default function ShipmentTracking() {
 
   const timelineDates = generateTimelineDates();
 
-  // Group tracking data by date
+  // Group tracking data by date - uses tracking.created_at (when shipment started)
   const getTrackingsByDate = (date: Date) => {
     return filteredTrackingData.filter((tracking) => {
       const trackingDate = new Date(tracking.created_at);
@@ -237,10 +237,15 @@ export default function ShipmentTracking() {
     const status = tracking.status?.toUpperCase() || "";
 
     if (["SUCCESS", "DELIVERED", "COMPLETED"].includes(status)) {
+      // For delivered shipments, calculate actual transit time
       const updatedDate = new Date(tracking.updated_at);
-      return Math.max(1, Math.ceil((updatedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)));
+      const days = Math.ceil((updatedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
+      // Return actual days, including 0 for same-day delivery
+      return days >= 0 ? days : 0;
     }
-    return Math.max(1, Math.ceil((currentDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)));
+    // For in-transit shipments, calculate from creation to now
+    const days = Math.ceil((currentDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
+    return days >= 0 ? days : 0;
   };
 
   const formatDateShort = (date: Date) => {

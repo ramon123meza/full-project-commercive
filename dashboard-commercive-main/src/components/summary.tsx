@@ -142,20 +142,32 @@ export default function Summary({ selectedRange }: any) {
     status: string;
   }) => {
     const createdDateStr = data.created_at.split("T")[0];
-    const updatedDateStr = data.updated_at.split("T")[0];
-
     const createdDate = new Date(createdDateStr);
-    const updatedDate = new Date(updatedDateStr);
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
 
+    // Check if shipment is delivered
+    const normalizedStatus = data.status?.toUpperCase() || "";
+    const isDelivered = ["SUCCESS", "DELIVERED", "COMPLETED"].includes(normalizedStatus);
+
     let daysGap = 0;
 
-    if (createdDate.getTime() === updatedDate.getTime()) {
-      daysGap = 0;
+    if (isDelivered) {
+      // For delivered shipments, calculate actual transit time
+      const updatedDateStr = data.updated_at.split("T")[0];
+      const updatedDate = new Date(updatedDateStr);
+
+      if (createdDate.getTime() === updatedDate.getTime()) {
+        daysGap = 0;
+      } else {
+        daysGap = Math.floor(
+          (updatedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)
+        );
+      }
     } else {
+      // For in-transit or pending, calculate from creation to now
       daysGap = Math.floor(
-        (updatedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)
+        (currentDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)
       );
     }
 

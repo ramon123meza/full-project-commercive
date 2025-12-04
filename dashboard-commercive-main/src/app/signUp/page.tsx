@@ -220,15 +220,36 @@ function SignupForm() {
           toast.error(error.message);
         }
       } else {
-        // Auto-create affiliate request for new users
+        // Auto-create affiliate request for new users with Pending status
         if (data?.user?.id) {
           const affiliateId = generateAffiliateId();
           try {
-            await supabase.from("affiliates").insert({
+            // Create affiliate record with Pending status - user must be approved by admin
+            const { error: affiliateError } = await supabase.from("affiliates").insert({
               user_id: data.user.id,
-              status: "Pending",
+              status: "Pending", // User account is locked until admin approves
               affiliate_id: affiliateId,
             });
+
+            if (affiliateError) {
+              console.error("Failed to create affiliate record:", affiliateError);
+            } else {
+              // Send notification to admin about new account
+              try {
+                await fetch("/api/notify-admin-new-account", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    email,
+                    firstName,
+                    lastName,
+                    affiliateId,
+                  }),
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify admin:", notifyError);
+              }
+            }
           } catch (affiliateError) {
             // Don't block signup if affiliate creation fails
             console.error("Failed to create affiliate record:", affiliateError);
@@ -266,7 +287,7 @@ function SignupForm() {
       <div
         className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
         style={{
-          background: "linear-gradient(135deg, #1B1F3B 0%, #3A6EA5 100%)",
+          background: "linear-gradient(135deg, #5B21B6 0%, #8e52f2 100%)",
         }}
       >
         {/* Background pattern */}
@@ -289,7 +310,7 @@ function SignupForm() {
           <h1 className="text-4xl xl:text-5xl font-bold mb-4 leading-tight">
             Join thousands of
             <br />
-            <span className="text-[#D7E8FF]">Shopify store owners</span>
+            <span className="text-[#EDE9FE]">Shopify store owners</span>
           </h1>
 
           <p className="text-lg text-gray-300 mb-10 max-w-md">
@@ -301,8 +322,8 @@ function SignupForm() {
           <div className="space-y-5 mb-12">
             {features.map((feature, index) => (
               <div key={index} className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[#D7E8FF] flex items-center justify-center mt-0.5">
-                  <CheckIcon className="w-4 h-4 text-[#1B1F3B]" />
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EDE9FE] flex items-center justify-center mt-0.5">
+                  <CheckIcon className="w-4 h-4 text-[#5B21B6]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">{feature.title}</h3>
@@ -319,7 +340,7 @@ function SignupForm() {
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D7E8FF] to-[#3A6EA5] border-2 border-white/20 flex items-center justify-center text-xs font-bold"
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-[#EDE9FE] to-[#8e52f2] border-2 border-white/20 flex items-center justify-center text-xs font-bold"
                   >
                     {String.fromCharCode(64 + i)}
                   </div>
@@ -344,7 +365,7 @@ function SignupForm() {
               &ldquo;Commercive transformed how I understand my store&apos;s performance.
               The insights helped me increase revenue by 40% in just 3 months.&rdquo;
             </p>
-            <p className="text-sm font-semibold mt-2 text-[#D7E8FF]">
+            <p className="text-sm font-semibold mt-2 text-[#EDE9FE]">
               - Sarah M., Fashion Boutique Owner
             </p>
           </div>
@@ -388,7 +409,7 @@ function SignupForm() {
                     className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                       touched.firstName && !validations.firstName
                         ? "border-red-400 focus:ring-red-200"
-                        : "border-gray-300 focus:ring-[#3A6EA5]/30 focus:border-[#3A6EA5]"
+                        : "border-gray-300 focus:ring-[#8e52f2]/30 focus:border-[#8e52f2]"
                     }`}
                   />
                   {touched.firstName && !validations.firstName && (
@@ -414,7 +435,7 @@ function SignupForm() {
                     className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                       touched.lastName && !validations.lastName
                         ? "border-red-400 focus:ring-red-200"
-                        : "border-gray-300 focus:ring-[#3A6EA5]/30 focus:border-[#3A6EA5]"
+                        : "border-gray-300 focus:ring-[#8e52f2]/30 focus:border-[#8e52f2]"
                     }`}
                   />
                   {touched.lastName && !validations.lastName && (
@@ -443,7 +464,7 @@ function SignupForm() {
                   className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                     touched.email && !validations.email
                       ? "border-red-400 focus:ring-red-200"
-                      : "border-gray-300 focus:ring-[#3A6EA5]/30 focus:border-[#3A6EA5]"
+                      : "border-gray-300 focus:ring-[#8e52f2]/30 focus:border-[#8e52f2]"
                   }`}
                 />
                 {touched.email && !validations.email && email.length > 0 && (
@@ -471,7 +492,7 @@ function SignupForm() {
                   className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                     touched.phoneNumber && !validations.phoneNumber
                       ? "border-red-400 focus:ring-red-200"
-                      : "border-gray-300 focus:ring-[#3A6EA5]/30 focus:border-[#3A6EA5]"
+                      : "border-gray-300 focus:ring-[#8e52f2]/30 focus:border-[#8e52f2]"
                   }`}
                 />
                 {touched.phoneNumber && !validations.phoneNumber && phoneNumber.length > 0 && (
@@ -500,7 +521,7 @@ function SignupForm() {
                     className={`w-full px-4 py-2.5 pr-12 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                       touched.password && !validations.password
                         ? "border-red-400 focus:ring-red-200"
-                        : "border-gray-300 focus:ring-[#3A6EA5]/30 focus:border-[#3A6EA5]"
+                        : "border-gray-300 focus:ring-[#8e52f2]/30 focus:border-[#8e52f2]"
                     }`}
                   />
                   <button
@@ -585,7 +606,7 @@ function SignupForm() {
                     className={`w-full px-4 py-2.5 pr-12 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                       touched.confirmPassword && !validations.confirmPassword
                         ? "border-red-400 focus:ring-red-200"
-                        : "border-gray-300 focus:ring-[#3A6EA5]/30 focus:border-[#3A6EA5]"
+                        : "border-gray-300 focus:ring-[#8e52f2]/30 focus:border-[#8e52f2]"
                     }`}
                   />
                   <button
@@ -617,15 +638,15 @@ function SignupForm() {
                   type="checkbox"
                   checked={agreedToTerms}
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  className="mt-1 w-4 h-4 text-[#3A6EA5] border-gray-300 rounded focus:ring-[#3A6EA5]/30 cursor-pointer"
+                  className="mt-1 w-4 h-4 text-[#8e52f2] border-gray-300 rounded focus:ring-[#8e52f2]/30 cursor-pointer accent-[#8e52f2]"
                 />
                 <label htmlFor="terms" className="text-sm text-[#4B5563] cursor-pointer">
                   I agree to the{" "}
-                  <a href="/terms" className="text-[#3A6EA5] hover:underline font-medium">
+                  <a href="/terms" className="text-[#8e52f2] hover:underline font-medium">
                     Terms of Service
                   </a>{" "}
                   and{" "}
-                  <a href="/privacy" className="text-[#3A6EA5] hover:underline font-medium">
+                  <a href="/privacy" className="text-[#8e52f2] hover:underline font-medium">
                     Privacy Policy
                   </a>
                   <span className="text-red-500"> *</span>
@@ -638,7 +659,7 @@ function SignupForm() {
                 disabled={!isFormValid || isLoading}
                 className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2 ${
                   isFormValid && !isLoading
-                    ? "bg-[#1B1F3B] hover:bg-[#3A6EA5] cursor-pointer shadow-lg hover:shadow-xl"
+                    ? "bg-[#5B21B6] hover:bg-[#8e52f2] cursor-pointer shadow-lg hover:shadow-xl"
                     : "bg-gray-400 cursor-not-allowed"
                 }`}
               >
@@ -659,7 +680,7 @@ function SignupForm() {
                 Already have an account?{" "}
                 <button
                   onClick={() => router.push("/login")}
-                  className="text-[#3A6EA5] hover:text-[#1B1F3B] font-semibold hover:underline transition-colors"
+                  className="text-[#8e52f2] hover:text-[#5B21B6] font-semibold hover:underline transition-colors"
                 >
                   Sign in
                 </button>
@@ -748,7 +769,7 @@ function SignupForm() {
                 setShowSuccessModal(false);
                 router.push("/login");
               }}
-              className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-[#1B1F3B] hover:bg-[#3A6EA5] transition-colors"
+              className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-[#5B21B6] hover:bg-[#8e52f2] transition-colors"
             >
               Go to Sign In
             </button>
@@ -769,7 +790,7 @@ export default function SignupPage() {
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="animate-pulse flex flex-col items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-[#3A6EA5]/30" />
+            <div className="w-12 h-12 rounded-full bg-[#8e52f2]/30" />
             <p className="text-[#4B5563]">Loading...</p>
           </div>
         </div>
