@@ -295,13 +295,24 @@ export default function ShipmentDetails() {
     [storeLocation, destination]
   );
 
-  // Calculate time difference
-  const calculateTimeDifference = (createdAt: string) => {
-    if (!createdAt) return "N/A";
-    const createdAtDate = new Date(createdAt);
-    const now = new Date();
-    const days = differenceInDays(now, createdAtDate);
-    const hours = differenceInHours(now, createdAtDate) % 24;
+  // Calculate time difference - uses tracking data for accurate shipment transit time
+  const calculateTimeDifference = (trackingCreatedAt: string, trackingStatus: string, trackingUpdatedAt: string) => {
+    if (!trackingCreatedAt) return "N/A";
+
+    const createdAtDate = new Date(trackingCreatedAt);
+    const normalizedStatus = trackingStatus?.toUpperCase() || "";
+
+    // For delivered shipments, calculate actual transit time between shipment creation and delivery
+    let endDate: Date;
+    if (["SUCCESS", "DELIVERED", "COMPLETED"].includes(normalizedStatus) && trackingUpdatedAt) {
+      endDate = new Date(trackingUpdatedAt);
+    } else {
+      // For in-transit or pending, calculate from now
+      endDate = new Date();
+    }
+
+    const days = differenceInDays(endDate, createdAtDate);
+    const hours = differenceInHours(endDate, createdAtDate) % 24;
 
     if (days === 0 && hours === 0) return "Less than an hour";
 
@@ -337,7 +348,7 @@ export default function ShipmentDetails() {
   const carrierInfo = getCarrierInfo(trackingData?.tracking_company);
   const StatusIcon = statusInfo.icon;
 
-  // Timeline events
+  // Timeline events - uses tracking data for accurate shipment timestamps
   const timelineEvents = [
     {
       title: "Order Created",
@@ -357,8 +368,11 @@ export default function ShipmentDetails() {
     },
     {
       title: "In Transit",
-      date: trackingData?.updated_at
-        ? format(new Date(trackingData.updated_at), "MMM dd, yyyy HH:mm")
+      // For in-transit status, show created_at (when shipment started)
+      // For delivered, show updated_at (when it was delivered)
+      // This ensures the timeline accurately reflects the shipment journey
+      date: trackingData?.created_at
+        ? format(new Date(trackingData.created_at), "MMM dd, yyyy HH:mm")
         : "-",
       status: ["IN_TRANSIT", "SHIPPED", "TRANSIT"].includes(trackingData?.status?.toUpperCase() || "")
         ? "current"
@@ -369,6 +383,7 @@ export default function ShipmentDetails() {
     },
     {
       title: "Delivered",
+      // Show delivery time from updated_at when package is delivered
       date: ["SUCCESS", "DELIVERED", "COMPLETED"].includes(trackingData?.status?.toUpperCase() || "")
         ? format(new Date(trackingData.updated_at), "MMM dd, yyyy HH:mm")
         : "-",
@@ -504,9 +519,9 @@ export default function ShipmentDetails() {
           <div className="flex items-center gap-2 text-small text-[#4B5563]">
             <FiCalendar className="w-4 h-4" />
             <span>
-              Started{" "}
-              {orderData?.created_at
-                ? format(new Date(orderData.created_at), "MMM dd, yyyy")
+              Shipped{" "}
+              {trackingData?.created_at
+                ? format(new Date(trackingData.created_at), "MMM dd, yyyy")
                 : "-"}
             </span>
           </div>
@@ -529,7 +544,7 @@ export default function ShipmentDetails() {
             <div className="card p-4 bg-[#F4F5F7]">
               <p className="text-tiny text-[#4B5563] mb-1">Transit Time</p>
               <p className="text-h4 text-[#1B1F3B]">
-                {calculateTimeDifference(orderData?.created_at)}
+                {calculateTimeDifference(trackingData?.created_at, trackingData?.status, trackingData?.updated_at)}
               </p>
             </div>
             <div className="card p-4 bg-[#F4F5F7]">

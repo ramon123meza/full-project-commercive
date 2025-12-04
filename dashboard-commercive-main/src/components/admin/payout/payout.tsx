@@ -108,7 +108,7 @@ export default function Payout() {
     columns: [
       {
         field: "created_at",
-        headerName: "Payout Time",
+        headerName: "Requested At",
         customRender: (row: any) => <span>{row.created_at.split("T")[0]}</span>,
       },
       {
@@ -122,16 +122,42 @@ export default function Payout() {
         customRender: (row: any) => <span>${row.amount}</span>,
       },
       {
-        field: "paypal_address",
-        headerName: "Paypal Address",
-        customRender: (row: any) => <span>{row.paypal_address}</span>,
+        field: "payment_method",
+        headerName: "Payment Method",
+        customRender: (row: any) => (
+          <span className="capitalize">{row.payment_method || 'PayPal'}</span>
+        ),
+      },
+      {
+        field: "payment_details",
+        headerName: "Payment Info",
+        customRender: (row: any) => {
+          const details = row.payment_details || {};
+          const method = row.payment_method || 'paypal';
+          if (method === 'paypal') {
+            return <span className="text-sm">{details.email || row.paypal_address}</span>;
+          } else if (method === 'zelle') {
+            return <span className="text-sm">{details.zelle_email || details.zelle_phone}</span>;
+          } else if (method === 'wise') {
+            return <span className="text-sm">{details.email}</span>;
+          }
+          return <span className="text-sm">{row.paypal_address}</span>;
+        },
       },
       {
         field: "status",
         headerName: "Status",
-        customRender: (row: any) => (
-          <span className={getStatusColor(row.status)}>{row.status}</span>
-        ),
+        customRender: (row: any) => {
+          const statusMap: {[key: string]: string} = {
+            'Pending': 'Requested',
+            'Approved': 'Processing',
+            'Completed': 'Completed'
+          };
+          const displayStatus = statusMap[row.status] || row.status;
+          return (
+            <span className={getStatusColor(row.status)}>{displayStatus}</span>
+          );
+        },
       },
       {
         field: "actions",
@@ -140,7 +166,7 @@ export default function Payout() {
           <div className="flex gap-2">
             {row.status === "Pending" && (
               <CustomButton
-                label="Approve"
+                label="Process"
                 className="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1"
                 callback={() => handleApprovePayout(row)}
               />

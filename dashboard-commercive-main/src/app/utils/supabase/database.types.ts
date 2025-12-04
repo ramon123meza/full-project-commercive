@@ -116,6 +116,9 @@ export type Database = {
           status: Database["public"]["Enums"]["AFFILIATE_STATUS"]
           store_url: string | null
           user_id: string
+          auto_payout_enabled: boolean
+          preferred_payment_method: string
+          payment_method_details: Json
         }
         Insert: {
           affiliate_id?: string | null
@@ -125,6 +128,9 @@ export type Database = {
           status: Database["public"]["Enums"]["AFFILIATE_STATUS"]
           store_url?: string | null
           user_id: string
+          auto_payout_enabled?: boolean
+          preferred_payment_method?: string
+          payment_method_details?: Json
         }
         Update: {
           affiliate_id?: string | null
@@ -134,6 +140,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["AFFILIATE_STATUS"]
           store_url?: string | null
           user_id?: string
+          auto_payout_enabled?: boolean
+          preferred_payment_method?: string
+          payment_method_details?: Json
         }
         Relationships: [
           {
@@ -438,6 +447,11 @@ export type Database = {
           created_at: string
           id: string
           paypal_address: string
+          payment_method: string
+          payment_details: Json
+          requested_at: string | null
+          processed_at: string | null
+          notes: string | null
           status: Database["public"]["Enums"]["AFFILIATE_STATUS"]
           store_url: string | null
           user_id: string
@@ -447,6 +461,11 @@ export type Database = {
           created_at?: string
           id?: string
           paypal_address: string
+          payment_method?: string
+          payment_details?: Json
+          requested_at?: string | null
+          processed_at?: string | null
+          notes?: string | null
           status: Database["public"]["Enums"]["AFFILIATE_STATUS"]
           store_url?: string | null
           user_id?: string
@@ -456,6 +475,11 @@ export type Database = {
           created_at?: string
           id?: string
           paypal_address?: string
+          payment_method?: string
+          payment_details?: Json
+          requested_at?: string | null
+          processed_at?: string | null
+          notes?: string | null
           status?: Database["public"]["Enums"]["AFFILIATE_STATUS"]
           store_url?: string | null
           user_id?: string
@@ -488,6 +512,10 @@ export type Database = {
         Row: {
           affiliate_id: string
           agent_name: string | null
+          business_type: string | null
+          client_country: string | null
+          client_group: string | null
+          client_niche: string | null
           created_at: string
           customer_number: string
           id: number
@@ -501,6 +529,10 @@ export type Database = {
         Insert: {
           affiliate_id: string
           agent_name?: string | null
+          business_type?: string | null
+          client_country?: string | null
+          client_group?: string | null
+          client_niche?: string | null
           created_at?: string
           customer_number: string
           id?: number
@@ -514,6 +546,10 @@ export type Database = {
         Update: {
           affiliate_id?: string
           agent_name?: string | null
+          business_type?: string | null
+          client_country?: string | null
+          client_group?: string | null
+          client_niche?: string | null
           created_at?: string
           customer_number?: string
           id?: number
@@ -899,6 +935,10 @@ export type Database = {
           affiliate: string | null
           affiliate_id: string | null
           agent_name: string | null
+          business_type: string | null
+          client_country: string | null
+          client_group: string | null
+          client_niche: string | null
           commission_method: number | null
           commission_rate: number | null
           created_at: string | null

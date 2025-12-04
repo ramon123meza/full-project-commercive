@@ -19,12 +19,45 @@ import {
   FiMail,
   FiExternalLink,
   FiRefreshCw,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import { FaWhatsapp, FaTwitter } from "react-icons/fa";
 
 const LAMBDA_URL = process.env.NEXT_PUBLIC_AWS_LAMBDA_URL || "";
 const IS_LAMBDA_ENABLED = LAMBDA_URL && LAMBDA_URL.startsWith("https://");
 const ITEMS_PER_PAGE = 10;
+
+// Sortable header component
+const SortableHeader = ({
+  label,
+  field,
+  currentSortField,
+  currentSortDirection,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  field: string;
+  currentSortField: string;
+  currentSortDirection: "asc" | "desc";
+  onSort: (field: string) => void;
+  align?: "left" | "right";
+}) => (
+  <th
+    className={`px-4 py-3 text-xs font-semibold text-[#4B5563] uppercase cursor-pointer hover:bg-[#F4F5F7] transition-colors ${
+      align === "right" ? "text-right" : "text-left"
+    }`}
+    onClick={() => onSort(field)}
+  >
+    <div className={`flex items-center gap-1 ${align === "right" ? "justify-end" : "justify-start"}`}>
+      <span>{label}</span>
+      {currentSortField === field && (
+        currentSortDirection === "asc" ? <FiChevronUp className="w-3 h-3" /> : <FiChevronDown className="w-3 h-3" />
+      )}
+    </div>
+  </th>
+);
 
 // Status badge component
 const StatusBadge = ({ status }: { status: string | undefined }) => {
@@ -128,6 +161,8 @@ export default function CommercivePartners() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const [sortField, setSortField] = useState<string>("order_time");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   // Stats state
   const [stats, setStats] = useState({
@@ -143,6 +178,21 @@ export default function CommercivePartners() {
   });
 
   const [lambdaLink, setLambdaLink] = useState("");
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+
+  // Payment preferences state
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'zelle' | 'wise'>('paypal');
+  const [paymentDetails, setPaymentDetails] = useState({
+    paypal_email: '',
+    zelle_email: '',
+    zelle_phone: '',
+    wise_email: '',
+  });
+  const [autoPayoutEnabled, setAutoPayoutEnabled] = useState(false);
+  const [savingPaymentPrefs, setSavingPaymentPrefs] = useState(false);
+  const [showPaymentPrefsModal, setShowPaymentPrefsModal] = useState(false);
 
   // Always have a fallback link based on affiliate_id
   const getFallbackLink = (affId: string | undefined) => {
@@ -156,6 +206,16 @@ export default function CommercivePartners() {
 
   // Format currency
   const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
+
+  // Handle column sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
 
   // Fetch referrals data from referral_view
   const fetchReferrals = useCallback(async () => {
@@ -171,7 +231,7 @@ export default function CommercivePartners() {
         .select("*", { count: "exact" })
         .eq("affiliate_id", affiliate.affiliate_id)
         .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
-        .order("order_time", { ascending: false });
+        .order(sortField, { ascending: sortDirection === "asc" });
 
       if (error) {
         console.error("Error fetching referrals:", error);
@@ -185,7 +245,7 @@ export default function CommercivePartners() {
     } finally {
       setLoading(false);
     }
-  }, [affiliate?.affiliate_id, currentPage, supabase]);
+  }, [affiliate?.affiliate_id, currentPage, sortField, sortDirection, supabase]);
 
   // Fetch leads that came through affiliate's link
   const fetchLeads = useCallback(async () => {
@@ -310,6 +370,34 @@ export default function CommercivePartners() {
       setStatsLoading(false);
     }
   }, [affiliate?.affiliate_id, userinfo?.id, leads.length, supabase]);
+
+  // Fetch payment history from Lambda
+  const fetchPaymentHistory = useCallback(async () => {
+    if (!affiliate?.affiliate_id || !IS_LAMBDA_ENABLED) {
+      setPaymentHistoryLoading(false);
+      return;
+    }
+
+    setPaymentHistoryLoading(true);
+    try {
+      const response = await fetch(
+        `${LAMBDA_URL}?action=crm/payments/history&affiliate_id=${encodeURIComponent(affiliate.affiliate_id)}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setPaymentHistory(data.payments || []);
+      } else {
+        console.error("Failed to fetch payment history from Lambda");
+        setPaymentHistory([]);
+      }
+    } catch (error) {
+      console.error("Error fetching payment history:", error);
+      setPaymentHistory([]);
+    } finally {
+      setPaymentHistoryLoading(false);
+    }
+  }, [affiliate?.affiliate_id]);
 
   // Generate affiliate link - with multiple fallback strategies
   const generateLambdaLink = useCallback(async (forceCreate: boolean = false) => {
@@ -471,6 +559,100 @@ export default function CommercivePartners() {
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
   };
 
+  // Load payment preferences
+  const loadPaymentPreferences = useCallback(async () => {
+    if (!affiliate?.user_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("affiliates")
+        .select("auto_payout_enabled, preferred_payment_method, payment_method_details")
+        .eq("user_id", affiliate.user_id)
+        .single();
+
+      if (error) {
+        console.error("Error loading payment preferences:", error);
+        return;
+      }
+
+      if (data) {
+        setAutoPayoutEnabled(data.auto_payout_enabled || false);
+        setPaymentMethod((data.preferred_payment_method as any) || 'paypal');
+
+        const details = data.payment_method_details as any || {};
+        setPaymentDetails({
+          paypal_email: details.paypal_email || details.email || '',
+          zelle_email: details.zelle_email || '',
+          zelle_phone: details.zelle_phone || '',
+          wise_email: details.wise_email || details.email || '',
+        });
+      }
+    } catch (error) {
+      console.error("Error loading payment preferences:", error);
+    }
+  }, [affiliate?.user_id, supabase]);
+
+  // Save payment preferences
+  const handleSavePaymentPreferences = async () => {
+    if (!affiliate?.user_id) {
+      toast.error("Affiliate not found");
+      return;
+    }
+
+    // Validate payment details based on selected method
+    if (paymentMethod === 'paypal' && !paymentDetails.paypal_email) {
+      toast.error("Please enter your PayPal email");
+      return;
+    }
+    if (paymentMethod === 'zelle' && !paymentDetails.zelle_email && !paymentDetails.zelle_phone) {
+      toast.error("Please enter your Zelle email or phone");
+      return;
+    }
+    if (paymentMethod === 'wise' && !paymentDetails.wise_email) {
+      toast.error("Please enter your Wise email");
+      return;
+    }
+
+    setSavingPaymentPrefs(true);
+    try {
+      const methodDetails: any = {};
+
+      if (paymentMethod === 'paypal') {
+        methodDetails.email = paymentDetails.paypal_email;
+      } else if (paymentMethod === 'zelle') {
+        methodDetails.zelle_email = paymentDetails.zelle_email;
+        methodDetails.zelle_phone = paymentDetails.zelle_phone;
+      } else if (paymentMethod === 'wise') {
+        methodDetails.email = paymentDetails.wise_email;
+        methodDetails.account_type = 'personal';
+      }
+
+      const { error } = await supabase
+        .from("affiliates")
+        .update({
+          auto_payout_enabled: autoPayoutEnabled,
+          preferred_payment_method: paymentMethod,
+          payment_method_details: methodDetails,
+        })
+        .eq("user_id", affiliate.user_id);
+
+      if (error) {
+        console.error("Error saving payment preferences:", error);
+        toast.error("Failed to save payment preferences: " + error.message);
+        return;
+      }
+
+      toast.success("Payment preferences saved successfully!");
+      setShowPaymentPrefsModal(false);
+      await updateAffiliate();
+    } catch (error) {
+      console.error("Error saving payment preferences:", error);
+      toast.error("Failed to save payment preferences");
+    } finally {
+      setSavingPaymentPrefs(false);
+    }
+  };
+
   // Request payout handler
   const handleRequestPayout = async () => {
     if (!userinfo?.id) {
@@ -483,10 +665,26 @@ export default function CommercivePartners() {
       return;
     }
 
-    // Prompt for PayPal address
-    const paypalAddress = prompt("Enter your PayPal email address for payout:");
-    if (!paypalAddress || !paypalAddress.includes("@")) {
-      toast.error("Please enter a valid PayPal email address");
+    // Check if payment preferences are set
+    let paymentEmail = '';
+    let methodDetails: any = {};
+
+    if (paymentMethod === 'paypal' && paymentDetails.paypal_email) {
+      paymentEmail = paymentDetails.paypal_email;
+      methodDetails = { email: paymentDetails.paypal_email };
+    } else if (paymentMethod === 'zelle' && (paymentDetails.zelle_email || paymentDetails.zelle_phone)) {
+      paymentEmail = paymentDetails.zelle_email || paymentDetails.zelle_phone;
+      methodDetails = {
+        zelle_email: paymentDetails.zelle_email,
+        zelle_phone: paymentDetails.zelle_phone
+      };
+    } else if (paymentMethod === 'wise' && paymentDetails.wise_email) {
+      paymentEmail = paymentDetails.wise_email;
+      methodDetails = { email: paymentDetails.wise_email, account_type: 'personal' };
+    } else {
+      // No payment preferences set, prompt to set them
+      toast.warning("Please set up your payment preferences first");
+      setShowPaymentPrefsModal(true);
       return;
     }
 
@@ -495,7 +693,10 @@ export default function CommercivePartners() {
         user_id: userinfo.id,
         amount: stats.availableBalance,
         status: "Pending",
-        paypal_address: paypalAddress,
+        paypal_address: paymentEmail, // Legacy field
+        payment_method: paymentMethod,
+        payment_details: methodDetails,
+        requested_at: new Date().toISOString(),
         store_url: selectedStore?.store_url || null,
       });
 
@@ -531,6 +732,19 @@ export default function CommercivePartners() {
       fetchStats();
     }
   }, [affiliate?.affiliate_id, userinfo?.id, leads, fetchStats]);
+
+  useEffect(() => {
+    if (affiliate?.affiliate_id && IS_LAMBDA_ENABLED) {
+      fetchPaymentHistory();
+    }
+  }, [affiliate?.affiliate_id, fetchPaymentHistory]);
+
+  // Load payment preferences when affiliate data is available
+  useEffect(() => {
+    if (affiliate?.user_id) {
+      loadPaymentPreferences();
+    }
+  }, [affiliate?.user_id, loadPaymentPreferences]);
 
   // Fix invalid affiliate IDs (legacy records that don't have proper AFF-XXXXXXXX format)
   const fixInvalidAffiliateId = useCallback(async () => {
@@ -623,42 +837,217 @@ export default function CommercivePartners() {
         </div>
       </div>
 
-      {/* Earnings Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title="Total Earnings"
-          value={formatCurrency(stats.totalEarnings)}
-          icon={FiDollarSign}
-          color="#10B981"
-          bgColor="#D1FAE5"
-          isLoading={statsLoading}
-        />
-        <StatCard
-          title="This Month"
-          value={formatCurrency(stats.thisMonth)}
-          icon={FiTrendingUp}
-          trend={stats.thisMonth > 0 ? "+Active" : undefined}
-          color="#8e52f2"
-          bgColor="#EDE9FE"
-          isLoading={statsLoading}
-        />
-        <StatCard
-          title="Pending Payouts"
-          value={formatCurrency(stats.pendingPayouts)}
-          icon={FiClock}
-          color="#F59E0B"
-          bgColor="#FEF3C7"
-          isLoading={statsLoading}
-        />
-        <StatCard
-          title="Available Balance"
-          value={formatCurrency(stats.availableBalance)}
-          icon={FiCheckCircle}
-          color="#10B981"
-          bgColor="#D1FAE5"
-          isLoading={statsLoading}
-        />
+      {/* Balance Overview Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-[#1B1F3B]">Balance Overview</h2>
+          <button
+            onClick={() => setShowPaymentHistory(!showPaymentHistory)}
+            className="flex items-center gap-2 text-sm text-[#8e52f2] hover:text-[#5B21B6] font-medium"
+          >
+            <FiClock className="w-4 h-4" />
+            <span>{showPaymentHistory ? "Hide" : "View"} Payment History</span>
+          </button>
+        </div>
+
+        {/* Balance Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <StatCard
+            title="Total Earnings"
+            value={formatCurrency(stats.totalEarnings)}
+            icon={FiDollarSign}
+            color="#10B981"
+            bgColor="#D1FAE5"
+            isLoading={statsLoading}
+          />
+          <StatCard
+            title="This Month"
+            value={formatCurrency(stats.thisMonth)}
+            icon={FiTrendingUp}
+            trend={stats.thisMonth > 0 ? "+Active" : undefined}
+            color="#8e52f2"
+            bgColor="#EDE9FE"
+            isLoading={statsLoading}
+          />
+          <StatCard
+            title="Total Paid Out"
+            value={formatCurrency(stats.totalEarnings - stats.availableBalance - stats.pendingPayouts)}
+            icon={FiCheckCircle}
+            color="#3A6EA5"
+            bgColor="#D7E8FF"
+            isLoading={statsLoading}
+          />
+          <StatCard
+            title="Pending Payouts"
+            value={formatCurrency(stats.pendingPayouts)}
+            icon={FiClock}
+            color="#F59E0B"
+            bgColor="#FEF3C7"
+            isLoading={statsLoading}
+          />
+          <StatCard
+            title="Available Balance"
+            value={formatCurrency(stats.availableBalance)}
+            icon={FiDollarSign}
+            color="#10B981"
+            bgColor="#D1FAE5"
+            isLoading={statsLoading}
+          />
+        </div>
+
+        {/* Balance Breakdown */}
+        <div className="mt-6 pt-6 border-t border-[#E5E7EB]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-[#10B981] to-[#059669] rounded-lg p-4 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <FiTrendingUp className="w-5 h-5" />
+                <span className="text-sm opacity-90">Lifetime Earnings</span>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(stats.totalEarnings)}</p>
+              <p className="text-xs opacity-80 mt-1">All-time commission earned</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-[#8e52f2] to-[#5B21B6] rounded-lg p-4 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <FiCheckCircle className="w-5 h-5" />
+                <span className="text-sm opacity-90">Already Paid</span>
+              </div>
+              <p className="text-2xl font-bold">
+                {formatCurrency(stats.totalEarnings - stats.availableBalance - stats.pendingPayouts)}
+              </p>
+              <p className="text-xs opacity-80 mt-1">Total payouts received</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-[#1B1F3B] to-[#3A6EA5] rounded-lg p-4 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <FiDollarSign className="w-5 h-5" />
+                <span className="text-sm opacity-90">Current Balance</span>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(stats.availableBalance)}</p>
+              <p className="text-xs opacity-80 mt-1">Available for withdrawal</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Payment History Section */}
+      {showPaymentHistory && affiliate?.status === "Approved" && (
+        <div className="bg-white rounded-xl shadow-sm border border-[#E5E7EB] mb-6 overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E5E7EB] bg-gradient-to-r from-[#8e52f2] to-[#5B21B6]">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Payment History</h2>
+                <p className="text-sm text-white/80 mt-1">Track all your payout transactions</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchPaymentHistory}
+                  disabled={paymentHistoryLoading}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white disabled:opacity-50"
+                  title="Refresh payment history"
+                >
+                  <FiRefreshCw className={`w-5 h-5 ${paymentHistoryLoading ? "animate-spin" : ""}`} />
+                </button>
+                <button
+                  onClick={() => setShowPaymentHistory(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-[#F9FAFB]">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-[#4B5563] uppercase">Payment Date</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-[#4B5563] uppercase">Payment ID</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-[#4B5563] uppercase">Amount</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-[#4B5563] uppercase">Payment Method</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-[#4B5563] uppercase">Reference ID</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-[#4B5563] uppercase">Orders</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-[#4B5563] uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E5E7EB]">
+                {paymentHistoryLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-8 text-center">
+                      <div className="flex justify-center">
+                        <FiRefreshCw className="w-6 h-6 animate-spin text-[#8e52f2]" />
+                      </div>
+                    </td>
+                  </tr>
+                ) : paymentHistory.length > 0 ? (
+                  paymentHistory.map((payment, index) => {
+                    const paymentDate = payment.created_at
+                      ? new Date(parseInt(payment.created_at)).toLocaleDateString()
+                      : "-";
+                    const paymentMethod = payment.payment_method || "PayPal";
+                    const paymentRef = payment.payment_reference || payment.payment_id;
+                    const amount = parseFloat(payment.amount || 0);
+                    const ordersCount = payment.orders_count || 0;
+                    const status = payment.status || "completed";
+
+                    return (
+                      <tr key={payment.payment_id || index} className="hover:bg-[#F9FAFB] transition-colors">
+                        <td className="px-5 py-4 text-sm text-[#1B1F3B]">{paymentDate}</td>
+                        <td className="px-5 py-4 text-sm text-[#4B5563] font-mono text-xs">
+                          {payment.payment_id || "-"}
+                        </td>
+                        <td className="px-5 py-4 text-sm font-semibold text-[#10B981] text-right">
+                          {formatCurrency(amount)}
+                        </td>
+                        <td className="px-5 py-4 text-sm text-[#1B1F3B] capitalize">{paymentMethod}</td>
+                        <td className="px-5 py-4 text-sm text-[#4B5563] font-mono text-xs">
+                          {paymentRef}
+                        </td>
+                        <td className="px-5 py-4 text-sm text-[#4B5563] text-center">{ordersCount}</td>
+                        <td className="px-5 py-4 text-center">
+                          <StatusBadge status={status} />
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-8 text-center text-[#4B5563]">
+                      <div className="flex flex-col items-center gap-2">
+                        <FiClock className="w-8 h-8 text-[#E5E7EB]" />
+                        <p>No payment history available yet.</p>
+                        <p className="text-sm">Payments will appear here once processed.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Payment History Summary */}
+          {paymentHistory.length > 0 && (
+            <div className="px-5 py-4 border-t border-[#E5E7EB] bg-[#F9FAFB]">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[#4B5563]">
+                  Total Payments: <span className="font-semibold">{paymentHistory.length}</span>
+                </span>
+                <span className="text-sm text-[#4B5563]">
+                  Total Amount Paid:{" "}
+                  <span className="font-semibold text-[#10B981]">
+                    {formatCurrency(
+                      paymentHistory.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0)
+                    )}
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Affiliate Link Section */}
       {affiliate?.status === "Approved" && (
@@ -750,21 +1139,25 @@ export default function CommercivePartners() {
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px]">
+            <table className="w-full min-w-[1400px]">
               <thead className="bg-[#F9FAFB]">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[#4B5563] uppercase">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[#4B5563] uppercase">Store</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[#4B5563] uppercase">Order #</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-[#4B5563] uppercase">Order Total</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-[#4B5563] uppercase">Rate</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-[#4B5563] uppercase">Commission</th>
+                  <SortableHeader label="Date" field="order_time" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Order #" field="order_number" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Client ID" field="customer_number" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Store Name" field="store_name" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Business Type" field="business_type" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Country" field="client_country" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Qty" field="quantity_of_order" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Total Amount" field="invoice_total" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Rate" field="commission_rate" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Commission" field="total_commission" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E7EB]">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center">
+                    <td colSpan={10} className="px-4 py-8 text-center">
                       <div className="flex justify-center">
                         <FiRefreshCw className="w-6 h-6 animate-spin text-[#3A6EA5]" />
                       </div>
@@ -773,18 +1166,36 @@ export default function CommercivePartners() {
                 ) : referrals.length > 0 ? (
                   referrals.map((item, index) => (
                     <tr key={item.id || index} className="hover:bg-[#F9FAFB] transition-colors">
-                      <td className="px-4 py-3 text-sm text-[#1B1F3B]">
+                      <td className="px-4 py-3 text-sm text-[#1B1F3B] whitespace-nowrap">
                         {item.order_time ? new Date(item.order_time).toLocaleDateString() : "-"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-[#1B1F3B]">{item.store_name || "-"}</td>
                       <td className="px-4 py-3 text-sm text-[#4B5563] font-mono">
-                        {item.order_number || item.customer_number || "-"}
+                        {item.order_number || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {item.customer_number || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1B1F3B]">
+                        {item.store_name || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {item.business_type || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {item.client_country || "-"}
                       </td>
                       <td className="px-4 py-3 text-sm text-[#1B1F3B] text-right">
+                        {item.quantity_of_order || 0}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1B1F3B] text-right font-medium">
                         {formatCurrency(item.invoice_total || 0)}
                       </td>
                       <td className="px-4 py-3 text-sm text-[#4B5563] text-right">
-                        {item.commission_rate ? `${item.commission_rate}%` : "1%"}
+                        {item.commission_method === 1
+                          ? `$${item.commission_rate?.toFixed(2) || "0.00"}`
+                          : item.commission_method === 2
+                          ? `${((item.commission_rate || 0) * 100).toFixed(1)}%`
+                          : "1%"}
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-[#10B981] text-right">
                         {formatCurrency(item.total_commission || 0)}
@@ -793,7 +1204,7 @@ export default function CommercivePartners() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-[#4B5563]">
+                    <td colSpan={10} className="px-4 py-8 text-center text-[#4B5563]">
                       <div className="flex flex-col items-center gap-2">
                         <FiUsers className="w-8 h-8 text-[#E5E7EB]" />
                         <p>No commissions yet.</p>
@@ -834,6 +1245,40 @@ export default function CommercivePartners() {
 
         {/* Right Sidebar - Payout & Performance */}
         <div className="space-y-6">
+          {/* Payment Preferences */}
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-[#E5E7EB]">
+            <h2 className="text-lg font-semibold text-[#1B1F3B] mb-4">Payment Preferences</h2>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-[#F4F5F7] rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-[#1B1F3B]">Payment Method</p>
+                  <p className="text-xs text-[#4B5563] capitalize">{paymentMethod || 'Not set'}</p>
+                </div>
+                <FiDollarSign className="w-5 h-5 text-[#8e52f2]" />
+              </div>
+              <div className="flex items-center justify-between p-3 bg-[#F4F5F7] rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-[#1B1F3B]">Auto Payouts</p>
+                  <p className="text-xs text-[#4B5563]">{autoPayoutEnabled ? 'Enabled' : 'Disabled'}</p>
+                </div>
+                <FiCheckCircle className={`w-5 h-5 ${autoPayoutEnabled ? 'text-[#10B981]' : 'text-[#E5E7EB]'}`} />
+              </div>
+              {autoPayoutEnabled && (
+                <div className="p-3 bg-[#EDE9FE] rounded-lg border border-[#8e52f2]">
+                  <p className="text-xs text-[#5B21B6]">
+                    We pay monthly (3-5 business days at beginning of month)
+                  </p>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowPaymentPrefsModal(true)}
+              className="w-full mt-4 py-2.5 rounded-lg font-medium bg-[#F4F5F7] text-[#1B1F3B] hover:bg-[#E5E7EB] transition-colors"
+            >
+              Update Payment Preferences
+            </button>
+          </div>
+
           {/* Payout Request */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-[#E5E7EB]">
             <h2 className="text-lg font-semibold text-[#1B1F3B] mb-4">Request Payout</h2>
@@ -853,11 +1298,21 @@ export default function CommercivePartners() {
               {stats.availableBalance < 50 ? "Min. $50 Required" : "Request Payout"}
             </button>
             <p className="text-xs text-[#4B5563] mt-2 text-center">
-              Payouts are processed within 3-5 business days via PayPal.
+              Payouts are processed within 3-5 business days using your preferred payment method.
             </p>
             {payouts.length > 0 && (
               <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
-                <h3 className="text-sm font-medium text-[#4B5563] mb-2">Payout History</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-[#4B5563]">Recent Payouts</h3>
+                  {IS_LAMBDA_ENABLED && (
+                    <button
+                      onClick={() => setShowPaymentHistory(true)}
+                      className="text-xs text-[#8e52f2] hover:text-[#5B21B6] font-medium"
+                    >
+                      View All
+                    </button>
+                  )}
+                </div>
                 {payouts.slice(0, 3).map((payout, idx) => (
                   <div key={idx} className="flex justify-between items-center py-2 text-sm">
                     <span className="text-[#4B5563]">{formatCurrency(payout.total_amount || 0)}</span>
@@ -984,6 +1439,133 @@ export default function CommercivePartners() {
                 <FaTwitter className="w-5 h-5" /> Twitter
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Preferences Modal */}
+      {showPaymentPrefsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-[#1B1F3B]">Payment Preferences</h2>
+              <button
+                onClick={() => setShowPaymentPrefsModal(false)}
+                className="p-2 hover:bg-[#F4F5F7] rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-[#1B1F3B] mb-3">Payment Method</label>
+              <div className="grid grid-cols-3 gap-3">
+                {(['paypal', 'zelle', 'wise'] as const).map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => setPaymentMethod(method)}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === method
+                        ? 'border-[#8e52f2] bg-[#F5F3FF]'
+                        : 'border-[#E5E7EB] hover:border-[#8e52f2]/50'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <FiDollarSign className={`w-6 h-6 mx-auto mb-2 ${paymentMethod === method ? 'text-[#8e52f2]' : 'text-[#4B5563]'}`} />
+                      <p className={`text-sm font-medium capitalize ${paymentMethod === method ? 'text-[#8e52f2]' : 'text-[#4B5563]'}`}>
+                        {method}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              {paymentMethod === 'paypal' && (
+                <div>
+                  <label className="block text-sm font-medium text-[#1B1F3B] mb-2">PayPal Email</label>
+                  <input
+                    type="email"
+                    value={paymentDetails.paypal_email}
+                    onChange={(e) => setPaymentDetails({ ...paymentDetails, paypal_email: e.target.value })}
+                    placeholder="your@email.com"
+                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8e52f2] focus:border-transparent"
+                  />
+                </div>
+              )}
+
+              {paymentMethod === 'zelle' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#1B1F3B] mb-2">Zelle Email</label>
+                    <input
+                      type="email"
+                      value={paymentDetails.zelle_email}
+                      onChange={(e) => setPaymentDetails({ ...paymentDetails, zelle_email: e.target.value })}
+                      placeholder="your@email.com"
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8e52f2] focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#1B1F3B] mb-2">Zelle Phone (Optional)</label>
+                    <input
+                      type="tel"
+                      value={paymentDetails.zelle_phone}
+                      onChange={(e) => setPaymentDetails({ ...paymentDetails, zelle_phone: e.target.value })}
+                      placeholder="+1 234 567 8900"
+                      className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8e52f2] focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {paymentMethod === 'wise' && (
+                <div>
+                  <label className="block text-sm font-medium text-[#1B1F3B] mb-2">Wise Email</label>
+                  <input
+                    type="email"
+                    value={paymentDetails.wise_email}
+                    onChange={(e) => setPaymentDetails({ ...paymentDetails, wise_email: e.target.value })}
+                    placeholder="your@email.com"
+                    className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8e52f2] focus:border-transparent"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mb-6 p-4 bg-[#F4F5F7] rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="font-medium text-[#1B1F3B]">Enable Automatic Monthly Payouts</p>
+                  <p className="text-xs text-[#4B5563] mt-1">
+                    We pay monthly (3-5 business days at beginning of month)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setAutoPayoutEnabled(!autoPayoutEnabled)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    autoPayoutEnabled ? 'bg-[#8e52f2]' : 'bg-[#E5E7EB]'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                      autoPayoutEnabled ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSavePaymentPreferences}
+              disabled={savingPaymentPrefs}
+              className="w-full py-3 rounded-lg font-medium bg-[#8e52f2] text-white hover:bg-[#5B21B6] disabled:bg-[#E5E7EB] disabled:text-[#4B5563] disabled:cursor-not-allowed transition-colors"
+            >
+              {savingPaymentPrefs ? 'Saving...' : 'Save Preferences'}
+            </button>
           </div>
         </div>
       )}

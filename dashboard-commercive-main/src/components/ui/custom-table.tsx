@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { MdOutlineEdit, MdOutlineMoreVert } from "react-icons/md";
 import { RiDeleteBinLine } from "react-icons/ri";
 import { GrView } from "react-icons/gr";
@@ -40,8 +41,10 @@ interface CustomTableProps<T> {
   showEdit?: boolean;
   showDelete?: boolean;
   showCheckbox?: boolean;
+  showApproveButton?: boolean;
   onCheckboxClick?: (id: any) => void;
   onDelete?: (id: any) => void;
+  onApprove?: (id: any) => void;
 }
 
 export default function CustomTable<T>({
@@ -52,8 +55,10 @@ export default function CustomTable<T>({
   showEdit = false,
   showDelete = false,
   showCheckbox = false,
+  showApproveButton = false,
   onCheckboxClick,
   onDelete,
+  onApprove,
 }: CustomTableProps<T>) {
   const { columns, rows, handlePagination, fixRow, handleRowLimit } =
     tableConfig;
@@ -92,7 +97,7 @@ export default function CustomTable<T>({
   };
 
   const updatedColumns = [...columns];
-  if (showEdit || showDelete || showCheckbox) {
+  if (showEdit || showDelete || showCheckbox || showApproveButton) {
     updatedColumns.push({ field: "action", headerName: "Action" });
   }
 
@@ -259,6 +264,20 @@ export default function CustomTable<T>({
                                   color="inherit"
                                 >
                                   <DeleteIcon />
+                                </IconButton>
+                              )}
+                              {showApproveButton && onApprove && (
+                                <IconButton
+                                  onClick={() => onApprove(row)}
+                                  color="success"
+                                  sx={{
+                                    color: "#10B981",
+                                    "&:hover": {
+                                      backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                    },
+                                  }}
+                                >
+                                  <CheckCircleIcon />
                                 </IconButton>
                               )}
                             </div>
