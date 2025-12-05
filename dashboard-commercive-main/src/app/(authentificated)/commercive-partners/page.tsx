@@ -147,6 +147,30 @@ interface Lead {
   orderUnits: string | null;
 }
 
+// Lambda order type - matches CSV import structure from admin
+interface LambdaOrder {
+  order_id?: string;
+  order_date?: string;
+  order_number?: string;
+  order_number_range?: string;
+  customer_code?: string;
+  customer_number?: string;
+  store_name?: string;
+  business_type?: string;
+  client_country?: string;
+  client_niche?: string;
+  client_group?: string;
+  affiliate_id?: string;
+  affiliate_name?: string;
+  quantity_of_orders?: number;
+  invoice_total?: number;
+  commission_type?: string;
+  commission_rate?: number;
+  commission_per_order?: number;
+  commission_earned?: number;
+  status?: string;
+}
+
 export default function CommercivePartners() {
   const supabase = createClient();
   const { affiliate, userinfo, selectedStore, updateAffiliate } = useStoreContext();
@@ -156,6 +180,7 @@ export default function CommercivePartners() {
   const [referrals, setReferrals] = useState<ReferralViewRow[]>([]);
   const [payouts, setPayouts] = useState<PayoutViewRow[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [lambdaOrders, setLambdaOrders] = useState<LambdaOrder[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -269,7 +294,7 @@ export default function CommercivePartners() {
     }
   }, [affiliate?.affiliate_id, supabase]);
 
-  // Fetch stats and payouts
+  // Fetch stats and payouts - combines Lambda (DynamoDB) and Supabase data
   const fetchStats = useCallback(async () => {
     if (!affiliate?.affiliate_id || !userinfo?.id) {
       setStatsLoading(false);
@@ -278,7 +303,43 @@ export default function CommercivePartners() {
 
     setStatsLoading(true);
     try {
-      // Fetch all referral data for this affiliate to calculate stats
+      let lambdaStats = null;
+      let fetchedLambdaOrders: LambdaOrder[] = [];
+
+      // First, try to fetch from Lambda/DynamoDB (this is where admin imports CSV data)
+      if (IS_LAMBDA_ENABLED) {
+        try {
+          // Fetch summary from Lambda (crm/summary endpoint)
+          const summaryResponse = await fetch(
+            `${LAMBDA_URL}?action=crm/summary&affiliate_id=${encodeURIComponent(affiliate.affiliate_id)}&period=all`
+          );
+          if (summaryResponse.ok) {
+            const summaryData = await summaryResponse.json();
+            if (summaryData.summary) {
+              lambdaStats = summaryData.summary;
+              console.log("[Partners] Lambda stats fetched:", lambdaStats);
+            }
+          }
+
+          // Fetch orders from Lambda for detailed breakdown
+          const ordersResponse = await fetch(
+            `${LAMBDA_URL}?action=crm/orders&affiliate_id=${encodeURIComponent(affiliate.affiliate_id)}&limit=500`
+          );
+          if (ordersResponse.ok) {
+            const ordersData = await ordersResponse.json();
+            if (ordersData.orders) {
+              fetchedLambdaOrders = ordersData.orders;
+              console.log("[Partners] Lambda orders fetched:", fetchedLambdaOrders.length);
+              // Store in state for display in table
+              setLambdaOrders(fetchedLambdaOrders);
+            }
+          }
+        } catch (lambdaError) {
+          console.log("[Partners] Lambda not available, falling back to Supabase:", lambdaError);
+        }
+      }
+
+      // Also fetch from Supabase referral_view as fallback/supplement
       const { data: allReferrals, error: refError } = await supabase
         .from("referral_view")
         .select("*")
@@ -308,10 +369,48 @@ export default function CommercivePartners() {
 
       setPayouts(payoutData || []);
 
-      // Calculate total earnings from referrals
-      const totalEarnings = allReferrals?.reduce((sum, r) => sum + (r.total_commission || 0), 0) || 0;
+      // Calculate stats - prefer Lambda data if available, otherwise use Supabase
+      let totalEarnings = 0;
+      let thisMonthEarnings = 0;
+      let totalReferrals = 0;
+      let avgOrderValue = 0;
 
-      // Calculate approved payouts total from payout_view
+      if (lambdaStats) {
+        // Use Lambda/DynamoDB data (from CSV imports)
+        totalEarnings = parseFloat(lambdaStats.total_commission || 0);
+        totalReferrals = parseInt(lambdaStats.total_orders || 0);
+        avgOrderValue = parseFloat(lambdaStats.average_order_value || 0);
+
+        // Calculate this month's earnings from Lambda orders
+        const now = new Date();
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        thisMonthEarnings = fetchedLambdaOrders
+          .filter((o) => {
+            if (!o.order_date) return false;
+            const orderDate = new Date(o.order_date);
+            return orderDate >= thisMonthStart;
+          })
+          .reduce((sum, o) => sum + parseFloat(String(o.commission_earned || 0)), 0);
+      } else {
+        // Fall back to Supabase data
+        totalEarnings = allReferrals?.reduce((sum, r) => sum + (r.total_commission || 0), 0) || 0;
+
+        const now = new Date();
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        thisMonthEarnings = allReferrals?.filter((r) => {
+          if (!r.order_time) return false;
+          const orderDate = new Date(r.order_time);
+          return orderDate >= thisMonthStart;
+        }).reduce((sum, r) => sum + (r.total_commission || 0), 0) || 0;
+
+        const totalInvoice = allReferrals?.reduce((sum, r) => sum + (r.invoice_total || 0), 0) || 0;
+        avgOrderValue = allReferrals && allReferrals.length > 0 ? totalInvoice / allReferrals.length : 0;
+
+        const uniqueCustomers = new Set(allReferrals?.map((r) => r.customer_number).filter(Boolean));
+        totalReferrals = uniqueCustomers.size || allReferrals?.length || 0;
+      }
+
+      // Calculate payout-related stats from Supabase payouts
       const approvedPayoutsTotal = payoutData?.reduce((sum, p) => {
         if (p.status === "Approved" || p.status === "Completed") {
           return sum + (p.total_amount || 0);
@@ -319,7 +418,6 @@ export default function CommercivePartners() {
         return sum;
       }, 0) || 0;
 
-      // Calculate pending payouts
       const pendingPayouts = payoutData?.reduce((sum, p) => {
         if (p.status === "Pending") {
           return sum + (p.total_amount || 0);
@@ -327,27 +425,9 @@ export default function CommercivePartners() {
         return sum;
       }, 0) || 0;
 
-      // Calculate this month's earnings
-      const now = new Date();
-      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const thisMonthEarnings = allReferrals?.filter((r) => {
-        if (!r.order_time) return false;
-        const orderDate = new Date(r.order_time);
-        return orderDate >= thisMonthStart;
-      }).reduce((sum, r) => sum + (r.total_commission || 0), 0) || 0;
-
-      // Calculate average order value
-      const totalInvoice = allReferrals?.reduce((sum, r) => sum + (r.invoice_total || 0), 0) || 0;
-      const avgOrderValue = allReferrals && allReferrals.length > 0 ? totalInvoice / allReferrals.length : 0;
-
-      // Get unique customers count for total referrals
-      const uniqueCustomers = new Set(allReferrals?.map((r) => r.customer_number).filter(Boolean));
-      const totalReferrals = uniqueCustomers.size || allReferrals?.length || 0;
-
       // Calculate conversion rate from leads
       const totalLeads = leads.length;
-      // A lead is "converted" if we have a referral record with matching email or a customer created
-      const convertedLeads = allReferrals?.length || 0;
+      const convertedLeads = lambdaStats ? parseInt(lambdaStats.total_orders || 0) : (allReferrals?.length || 0);
       const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
       // Available balance = total earned - approved payouts - pending payouts
@@ -1130,40 +1210,104 @@ export default function CommercivePartners() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Referrals Table */}
+        {/* Referrals Table - Shows Lambda orders if available, falls back to Supabase */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-[#E5E7EB] overflow-hidden">
           <div className="px-5 py-4 border-b border-[#E5E7EB]">
-            <h2 className="text-lg font-semibold text-[#1B1F3B]">Commission History</h2>
-            <p className="text-sm text-[#4B5563]">
-              Your affiliate ID: <span className="font-mono bg-[#F4F5F7] px-2 py-0.5 rounded">{affiliate?.affiliate_id || "N/A"}</span>
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-[#1B1F3B]">Commission History</h2>
+                <p className="text-sm text-[#4B5563]">
+                  Your affiliate ID: <span className="font-mono bg-[#F4F5F7] px-2 py-0.5 rounded">{affiliate?.affiliate_id || "N/A"}</span>
+                </p>
+              </div>
+              {lambdaOrders.length > 0 && (
+                <span className="px-2 py-1 text-xs font-medium bg-[#D1FAE5] text-[#10B981] rounded">
+                  {lambdaOrders.length} orders from CRM
+                </span>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px]">
+            <table className="w-full min-w-[1800px]">
               <thead className="bg-[#F9FAFB]">
                 <tr>
-                  <SortableHeader label="Date" field="order_time" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Date" field="order_date" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Order #" field="order_number" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Client ID" field="customer_number" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Order Range" field="order_number_range" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Client ID" field="customer_code" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Store Name" field="store_name" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Business Type" field="business_type" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Country" field="client_country" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Qty" field="quantity_of_order" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
-                  <SortableHeader label="Total Amount" field="invoice_total" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Niche" field="client_niche" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Group" field="client_group" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Qty" field="quantity_of_orders" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Invoice Total" field="invoice_total" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Comm. Type" field="commission_type" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Rate" field="commission_rate" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
-                  <SortableHeader label="Commission" field="total_commission" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Commission" field="commission_earned" currentSortField={sortField} currentSortDirection={sortDirection} onSort={handleSort} align="right" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E7EB]">
-                {loading ? (
+                {loading || statsLoading ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center">
+                    <td colSpan={14} className="px-4 py-8 text-center">
                       <div className="flex justify-center">
                         <FiRefreshCw className="w-6 h-6 animate-spin text-[#3A6EA5]" />
                       </div>
                     </td>
                   </tr>
+                ) : lambdaOrders.length > 0 ? (
+                  // Display Lambda orders (from CSV imports via admin)
+                  lambdaOrders.map((order, index) => (
+                    <tr key={order.order_id || index} className="hover:bg-[#F9FAFB] transition-colors">
+                      <td className="px-4 py-3 text-sm text-[#1B1F3B] whitespace-nowrap">
+                        {order.order_date ? new Date(order.order_date).toLocaleDateString() : "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563] font-mono">
+                        {order.order_number || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563] font-mono text-xs">
+                        {order.order_number_range || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {order.customer_code || order.customer_number || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1B1F3B]">
+                        {order.store_name || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {order.business_type || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {order.client_country || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {order.client_niche || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {order.client_group || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1B1F3B] text-right">
+                        {order.quantity_of_orders || 0}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#1B1F3B] text-right font-medium">
+                        {formatCurrency(order.invoice_total || 0)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {order.commission_type || "percentage"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563] text-right">
+                        {order.commission_type === "fixed" || order.commission_type === "per_order"
+                          ? `$${(order.commission_per_order || order.commission_rate || 0).toFixed(2)}`
+                          : `${((order.commission_rate || 0.01) * 100).toFixed(1)}%`}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[#10B981] text-right">
+                        {formatCurrency(order.commission_earned || 0)}
+                      </td>
+                    </tr>
+                  ))
                 ) : referrals.length > 0 ? (
+                  // Fallback to Supabase referral_view data
                   referrals.map((item, index) => (
                     <tr key={item.id || index} className="hover:bg-[#F9FAFB] transition-colors">
                       <td className="px-4 py-3 text-sm text-[#1B1F3B] whitespace-nowrap">
@@ -1171,6 +1315,9 @@ export default function CommercivePartners() {
                       </td>
                       <td className="px-4 py-3 text-sm text-[#4B5563] font-mono">
                         {item.order_number || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563] font-mono text-xs">
+                        -
                       </td>
                       <td className="px-4 py-3 text-sm text-[#4B5563]">
                         {item.customer_number || "-"}
@@ -1184,11 +1331,20 @@ export default function CommercivePartners() {
                       <td className="px-4 py-3 text-sm text-[#4B5563]">
                         {item.client_country || "-"}
                       </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {item.client_niche || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {item.client_group || "-"}
+                      </td>
                       <td className="px-4 py-3 text-sm text-[#1B1F3B] text-right">
                         {item.quantity_of_order || 0}
                       </td>
                       <td className="px-4 py-3 text-sm text-[#1B1F3B] text-right font-medium">
                         {formatCurrency(item.invoice_total || 0)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#4B5563]">
+                        {item.commission_method === 1 ? "fixed" : "percentage"}
                       </td>
                       <td className="px-4 py-3 text-sm text-[#4B5563] text-right">
                         {item.commission_method === 1
@@ -1204,7 +1360,7 @@ export default function CommercivePartners() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-[#4B5563]">
+                    <td colSpan={14} className="px-4 py-8 text-center text-[#4B5563]">
                       <div className="flex flex-col items-center gap-2">
                         <FiUsers className="w-8 h-8 text-[#E5E7EB]" />
                         <p>No commissions yet.</p>
@@ -1216,8 +1372,8 @@ export default function CommercivePartners() {
               </tbody>
             </table>
           </div>
-          {/* Pagination */}
-          {totalItems > ITEMS_PER_PAGE && (
+          {/* Pagination - only show for Supabase data */}
+          {lambdaOrders.length === 0 && totalItems > ITEMS_PER_PAGE && (
             <div className="px-5 py-4 border-t border-[#E5E7EB] flex items-center justify-between">
               <span className="text-sm text-[#4B5563]">
                 Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
@@ -1238,6 +1394,22 @@ export default function CommercivePartners() {
                 >
                   Next
                 </button>
+              </div>
+            </div>
+          )}
+          {/* Lambda orders count */}
+          {lambdaOrders.length > 0 && (
+            <div className="px-5 py-4 border-t border-[#E5E7EB] bg-[#F9FAFB]">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[#4B5563]">
+                  Total Orders: <span className="font-semibold">{lambdaOrders.length}</span>
+                </span>
+                <span className="text-sm text-[#4B5563]">
+                  Total Commission:{" "}
+                  <span className="font-semibold text-[#10B981]">
+                    {formatCurrency(lambdaOrders.reduce((sum, o) => sum + (o.commission_earned || 0), 0))}
+                  </span>
+                </span>
               </div>
             </div>
           )}

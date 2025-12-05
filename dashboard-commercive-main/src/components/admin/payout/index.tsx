@@ -215,7 +215,7 @@ export default function PayoutManagement() {
     setProcessModalData({
       payout,
       transactionId: "",
-      paymentMethod: "PayPal",
+      paymentMethod: (payout as any).payment_method || "paypal",
     });
     setProcessModalOpen(true);
   };
@@ -663,7 +663,7 @@ export default function PayoutManagement() {
                   Amount
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium" style={{ color: colors.textSecondary }}>
-                  PayPal Address
+                  Payment Method
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium" style={{ color: colors.textSecondary }}>
                   Status
@@ -727,8 +727,15 @@ export default function PayoutManagement() {
                         ${payout.amount?.toFixed(2)}
                       </span>
                     </td>
-                    <td className="px-4 py-4" style={{ color: colors.textPrimary }}>
-                      {payout.paypal_address || "N/A"}
+                    <td className="px-4 py-4">
+                      <div>
+                        <span className="text-xs font-medium px-2 py-1 rounded" style={{ backgroundColor: colors.hover, color: colors.accent }}>
+                          {(payout as any).payment_method || "PayPal"}
+                        </span>
+                        <p className="text-sm mt-1" style={{ color: colors.textPrimary }}>
+                          {payout.paypal_address || "N/A"}
+                        </p>
+                      </div>
                     </td>
                     <td className="px-4 py-4">{getStatusBadge(payout.status)}</td>
                     <td className="px-4 py-4" style={{ color: colors.textSecondary }}>
@@ -837,7 +844,13 @@ export default function PayoutManagement() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span style={{ color: colors.textSecondary }}>PayPal:</span>
+                  <span style={{ color: colors.textSecondary }}>Payment Method:</span>
+                  <span className="font-medium capitalize" style={{ color: colors.accent }}>
+                    {(processModalData.payout as any).payment_method || "PayPal"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span style={{ color: colors.textSecondary }}>Pay To:</span>
                   <span style={{ color: colors.textPrimary }}>
                     {processModalData.payout.paypal_address || "N/A"}
                   </span>
@@ -848,7 +861,7 @@ export default function PayoutManagement() {
             {/* Payment Method */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
-                Payment Method
+                Payment Method Used
               </label>
               <select
                 value={processModalData.paymentMethod}
@@ -862,9 +875,11 @@ export default function PayoutManagement() {
                   border: `1px solid ${colors.border}`,
                 }}
               >
-                <option value="PayPal">PayPal</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Other">Other</option>
+                <option value="paypal">PayPal</option>
+                <option value="zelle">Zelle</option>
+                <option value="wise">Wise</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="other">Other</option>
               </select>
             </div>
 

@@ -280,7 +280,8 @@ export async function saveBackorderDataToSupabase(
         );
 
       if (availableQuantity < 1) {
-        const updatedBackOrders = inventoryData.back_orders || 0 + 1;
+        // Fix: Proper operator precedence - increment existing back_orders or start at 1
+        const updatedBackOrders = (inventoryData.back_orders || 0) + 1;
 
         const { error: updateError } = await supabase
           .from("inventory")

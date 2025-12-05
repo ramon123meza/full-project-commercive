@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/app/utils/supabase/client";
 import { redirect, usePathname } from "next/navigation";
 import Header from "@/components/header";
@@ -75,6 +75,11 @@ export const StoreProvider: React.FC<{
   const [userinfo, setUserinfo] = useState(initialUserinfo);
   const [affiliate, setAffiliate] = useState(iniitialAffilateRow);
 
+  // Track if we've already restored from localStorage to prevent overwriting
+  const hasRestoredFromStorage = useRef(false);
+  // Track if this is user-initiated store change (vs automatic restoration)
+  const isUserSelection = useRef(false);
+
   const updateUserinfo = async () => {
     if (!userinfo) return;
     const { data } = await supabase
@@ -118,19 +123,33 @@ export const StoreProvider: React.FC<{
     if (userStores && userStores?.length > 0) {
       setStores(userStores);
 
-      // Try to restore previously selected store from localStorage
-      const storedStoreId = getStoredStoreId();
-      if (storedStoreId !== null) {
-        const previouslySelected = userStores.find((s: StoreRow) => s.id === storedStoreId);
-        if (previouslySelected) {
-          setSelectedStore(previouslySelected);
-          return;
-        }
-      }
+      // Only attempt restoration if we haven't already done so
+      if (!hasRestoredFromStorage.current) {
+        hasRestoredFromStorage.current = true;
 
-      // Fall back to first store if no stored selection or stored store not found
-      setSelectedStore(userStores[0]);
-      saveStoreId(userStores[0].id);
+        // Try to restore previously selected store from localStorage
+        const storedStoreId = getStoredStoreId();
+        if (storedStoreId !== null) {
+          const previouslySelected = userStores.find((s: StoreRow) => s.id === storedStoreId);
+          if (previouslySelected) {
+            console.log("[StoreContext] Restored store from localStorage:", previouslySelected.store_url);
+            setSelectedStore(previouslySelected);
+            return;
+          }
+          // Store ID in localStorage but not found in user's stores - log it but don't overwrite
+          console.log("[StoreContext] Stored store ID not found in user stores, falling back to first store");
+        }
+
+        // Fall back to first store only if no stored selection
+        setSelectedStore(userStores[0]);
+        // Only save to localStorage if there was no previous selection
+        if (storedStoreId === null) {
+          saveStoreId(userStores[0].id);
+        }
+      } else if (!selectedStore) {
+        // If we've already restored but selectedStore is null (shouldn't happen), set to first
+        setSelectedStore(userStores[0]);
+      }
     } else {
       setStores([]);
       // Don't redirect if on admin pages - admin users might not have stores
@@ -140,19 +159,24 @@ export const StoreProvider: React.FC<{
     }
   };
 
+  // Fetch store data when userinfo changes
   useEffect(() => {
     // Only fetch store data if user is authenticated
     if (userinfo) {
       fetchStoreData();
     }
-  }, [userinfo?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userinfo]);
 
-  // Persist selected store to localStorage when it changes
+  // Persist selected store to localStorage when user changes selection
   useEffect(() => {
-    if (selectedStore?.id) {
+    // Only save if we have a valid store AND stores have been loaded
+    // This prevents overwriting during initial render
+    if (selectedStore?.id && stores && stores.length > 0) {
       saveStoreId(selectedStore.id);
+      console.log("[StoreContext] Saved store to localStorage:", selectedStore.store_url);
     }
-  }, [selectedStore?.id]);
+  }, [selectedStore, stores]);
 
   // For public pages (no user), just render children with minimal context
   if (!userinfo) {
