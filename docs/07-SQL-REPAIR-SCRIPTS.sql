@@ -250,9 +250,14 @@ UNIQUE (user_id, store_id);
 -- PART 6: RECREATE DATABASE VIEWS
 -- =====================================================
 -- These views are critical for the dashboard to display affiliate and referral data
+-- NOTE: Views must be dropped in order due to dependencies
+
+-- 6.0: Drop dependent views first (in correct order)
+DROP VIEW IF EXISTS referral_summary CASCADE;
+DROP VIEW IF EXISTS affiliate_setting_view CASCADE;
 
 -- 6.1: Recreate referral_view with user info
-DROP VIEW IF EXISTS referral_view;
+DROP VIEW IF EXISTS referral_view CASCADE;
 
 CREATE VIEW public.referral_view WITH (security_invoker = on) AS
 SELECT
@@ -316,7 +321,7 @@ GROUP BY p.user_id, u.email, p.status;
 GRANT SELECT ON payout_view TO authenticated;
 
 -- 6.3: Recreate referral_summary view
-DROP VIEW IF EXISTS referral_summary;
+DROP VIEW IF EXISTS referral_summary CASCADE;
 
 CREATE VIEW public.referral_summary WITH (security_invoker = on) AS
 SELECT
@@ -332,6 +337,33 @@ FROM referral_view rv
 GROUP BY rv.affiliate_id, rv.user_id, rv.affiliate_name, rv.affiliate_email;
 
 GRANT SELECT ON referral_summary TO authenticated;
+
+-- 6.4: Recreate affiliate_setting_view (depends on referral_view)
+DROP VIEW IF EXISTS affiliate_setting_view CASCADE;
+
+CREATE VIEW public.affiliate_setting_view WITH (security_invoker = on) AS
+SELECT
+  affiliate_id,
+  user_id,
+  affiliate_name,
+  affiliate_email,
+  SUM(total_commission) AS total_amount,
+  COUNT(id) AS count,
+  SUM(quantity_of_order) AS order_count,
+  commission_method,
+  commission_rate,
+  customer_number
+FROM referral_view r
+GROUP BY
+  affiliate_id,
+  customer_number,
+  commission_method,
+  commission_rate,
+  user_id,
+  affiliate_name,
+  affiliate_email;
+
+GRANT SELECT ON affiliate_setting_view TO authenticated;
 
 
 -- =====================================================
