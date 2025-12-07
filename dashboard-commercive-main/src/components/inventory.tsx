@@ -199,7 +199,7 @@ export default function Inventory({ data }: InventoryProps) {
             <p className="text-tiny text-slate">No critical inventory issues</p>
           </div>
         ) : (
-          <div className="space-y-3 overflow-y-auto max-h-[200px] custom-scrollbar pr-1">
+          <div className="space-y-3 overflow-y-auto max-h-[200px] sm:max-h-[300px] md:max-h-[400px] custom-scrollbar pr-1">
             {criticalItems.map((item, index) => (
               <div
                 key={index}

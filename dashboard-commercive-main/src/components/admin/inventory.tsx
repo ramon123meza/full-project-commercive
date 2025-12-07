@@ -513,7 +513,7 @@ export default function Inventory() {
               <h2 className="text-lg font-semibold">
                 {isEdit ? "Edit Inventory" : "Add Inventory"}
               </h2>
-              <div className="flex flex-col gap-6 max-sm:h-full max-sm:max-h-[350px] custom-scrollbar">
+              <div className="flex flex-col gap-6 max-sm:overflow-y-auto max-sm:max-h-[60vh] custom-scrollbar">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex flex-col relative w-full">
                     <InputField

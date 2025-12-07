@@ -543,7 +543,7 @@ export default function LoginPage() {
                 scrolled ? "bg-white shadow-md" : "bg-white/90 backdrop-blur-sm shadow-lg"
               }`}>
                 <img
-                  src="https://prompt-images-nerd.s3.us-east-1.amazonaws.com/ChatGPT+Image+14+nov+2025%2C+08_24_12.png"
+                  src="https://commerciv-forms.s3.us-east-1.amazonaws.com/commercive_logo.png"
                   alt="Commercive Logo"
                   className="h-10 w-auto"
                 />
@@ -559,7 +559,7 @@ export default function LoginPage() {
                 Performance
               </a>
               <a href="#cta" className="text-white/80 hover:text-white transition-colors font-medium">
-                Get Started
+                Create an account
               </a>
             </div>
 
@@ -575,7 +575,7 @@ export default function LoginPage() {
                 onClick={() => router.push("/signUp")}
                 className="btn btn-lg bg-white text-[#5B21B6] hover:bg-[#EDE9FE] transition-all shadow-lg hover:shadow-xl"
               >
-                Get Started
+                Create an account
               </button>
             </div>
           </div>
@@ -856,7 +856,7 @@ export default function LoginPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
               <img
-                src="https://prompt-images-nerd.s3.us-east-1.amazonaws.com/ChatGPT+Image+14+nov+2025%2C+08_24_12.png"
+                src="https://commerciv-forms.s3.us-east-1.amazonaws.com/commercive_logo.png"
                 alt="Commercive Logo"
                 className="h-10 w-auto"
               />
@@ -890,7 +890,7 @@ export default function LoginPage() {
               <div className="flex justify-center mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#5B21B6] to-[#8e52f2] flex items-center justify-center shadow-lg">
                   <img
-                    src="https://prompt-images-nerd.s3.us-east-1.amazonaws.com/ChatGPT+Image+14+nov+2025%2C+08_24_12.png"
+                    src="https://commerciv-forms.s3.us-east-1.amazonaws.com/commercive_logo.png"
                     alt="Commercive Logo"
                     className="h-10 w-auto"
                   />
