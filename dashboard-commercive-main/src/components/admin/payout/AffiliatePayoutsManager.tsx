@@ -80,6 +80,24 @@ interface PaymentHistory {
   orders_paid: number;
 }
 
+// Payout request from Supabase (affiliate side requests)
+interface PayoutRequest {
+  id: number;
+  user_id: string;
+  amount: number;
+  status: string;
+  paypal_address: string | null;
+  payment_method: string | null;
+  payment_details: Record<string, any> | null;
+  requested_at: string | null;
+  created_at: string;
+  store_url: string | null;
+  // Joined from user/affiliates
+  affiliate_name?: string;
+  affiliate_id?: string;
+  email?: string;
+}
+
 type SortField = "order_date" | "affiliate_name" | "quantity_of_orders" | "total_commission" | "status";
 type SortDirection = "asc" | "desc";
 type OrderTab = "pending" | "paid";
@@ -200,13 +218,15 @@ export default function AffiliatePayoutsManager() {
   // State
   const [orders, setOrders] = useState<AffiliateOrder[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [sortField, setSortField] = useState<SortField>("order_date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [selectedTab, setSelectedTab] = useState<"orders" | "summary" | "history">("orders");
+  const [selectedTab, setSelectedTab] = useState<"orders" | "requests" | "summary" | "history">("orders");
   const [orderTab, setOrderTab] = useState<OrderTab>("pending");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -289,10 +309,68 @@ export default function AffiliatePayoutsManager() {
     }
   }, []);
 
+  // Fetch payout requests from Supabase (affiliate-requested payouts)
+  const fetchPayoutRequests = useCallback(async () => {
+    try {
+      // Fetch pending payout requests with user info
+      const { data: payouts, error } = await supabase
+        .from("payouts")
+        .select("*")
+        .in("status", ["Pending", "pending"])
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[PayoutsManager] Error fetching payout requests:", error);
+        return;
+      }
+
+      if (!payouts || payouts.length === 0) {
+        setPayoutRequests([]);
+        return;
+      }
+
+      // Get user IDs to fetch affiliate info
+      const userIds = [...new Set(payouts.map((p) => p.user_id))];
+
+      // Fetch user and affiliate info
+      const { data: users } = await supabase
+        .from("user")
+        .select("id, email, name")
+        .in("id", userIds);
+
+      const { data: affiliates } = await supabase
+        .from("affiliates")
+        .select("user_id, affiliate_id")
+        .in("user_id", userIds);
+
+      // Create lookup maps
+      const userMap = new Map(users?.map((u) => [u.id, u]) || []);
+      const affiliateMap = new Map(affiliates?.map((a) => [a.user_id, a]) || []);
+
+      // Enrich payout requests with affiliate info
+      const enrichedPayouts: PayoutRequest[] = payouts.map((payout) => {
+        const user = userMap.get(payout.user_id);
+        const affiliate = affiliateMap.get(payout.user_id);
+        return {
+          ...payout,
+          affiliate_name: user?.name || user?.email?.split("@")[0] || "Unknown",
+          affiliate_id: affiliate?.affiliate_id || "N/A",
+          email: user?.email || "",
+        };
+      });
+
+      setPayoutRequests(enrichedPayouts);
+      console.log(`[PayoutsManager] Loaded ${enrichedPayouts.length} pending payout requests`);
+    } catch (error) {
+      console.error("[PayoutsManager] Error fetching payout requests:", error);
+    }
+  }, [supabase]);
+
   useEffect(() => {
     fetchOrders();
     fetchPaymentHistory();
-  }, [fetchOrders, fetchPaymentHistory]);
+    fetchPayoutRequests();
+  }, [fetchOrders, fetchPaymentHistory, fetchPayoutRequests]);
 
   // =============================================================================
   // CSV OPERATIONS
@@ -809,6 +887,107 @@ export default function AffiliatePayoutsManager() {
   };
 
   // =============================================================================
+  // PAYOUT REQUEST ACTIONS
+  // =============================================================================
+
+  const handleApprovePayoutRequest = async (request: PayoutRequest) => {
+    const confirmed = window.confirm(
+      `Approve payout request from ${request.affiliate_name}?\n\nAmount: ${formatCurrency(request.amount)}\nPayment Method: ${request.payment_method || "PayPal"}\nEmail: ${request.paypal_address || request.email || "N/A"}`
+    );
+
+    if (!confirmed) return;
+
+    setProcessingRequestId(request.id);
+    try {
+      const { error } = await supabase
+        .from("payouts")
+        .update({
+          status: "Approved",
+        })
+        .eq("id", request.id);
+
+      if (error) {
+        toast.error("Failed to approve payout request: " + error.message);
+        return;
+      }
+
+      toast.success(`Payout request approved for ${request.affiliate_name}`);
+      fetchPayoutRequests();
+    } catch (error) {
+      console.error("[PayoutsManager] Error approving payout:", error);
+      toast.error("Failed to approve payout request");
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  const handleCompletePayoutRequest = async (request: PayoutRequest) => {
+    const paymentRef = window.prompt(
+      `Complete payment for ${request.affiliate_name}\n\nAmount: ${formatCurrency(request.amount)}\n\nEnter payment reference (e.g., PayPal transaction ID):`,
+      `PAY-${Date.now()}`
+    );
+
+    if (!paymentRef) return;
+
+    setProcessingRequestId(request.id);
+    try {
+      const { error } = await supabase
+        .from("payouts")
+        .update({
+          status: "Completed",
+          payment_reference: paymentRef,
+        })
+        .eq("id", request.id);
+
+      if (error) {
+        toast.error("Failed to complete payout: " + error.message);
+        return;
+      }
+
+      toast.success(`Payout completed for ${request.affiliate_name}!`);
+      fetchPayoutRequests();
+      fetchPaymentHistory();
+    } catch (error) {
+      console.error("[PayoutsManager] Error completing payout:", error);
+      toast.error("Failed to complete payout");
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  const handleRejectPayoutRequest = async (request: PayoutRequest) => {
+    const reason = window.prompt(
+      `Reject payout request from ${request.affiliate_name}?\n\nAmount: ${formatCurrency(request.amount)}\n\nEnter rejection reason (optional):`,
+      ""
+    );
+
+    if (reason === null) return; // User cancelled
+
+    setProcessingRequestId(request.id);
+    try {
+      const { error } = await supabase
+        .from("payouts")
+        .update({
+          status: "Declined",
+        })
+        .eq("id", request.id);
+
+      if (error) {
+        toast.error("Failed to reject payout request: " + error.message);
+        return;
+      }
+
+      toast.success(`Payout request rejected`);
+      fetchPayoutRequests();
+    } catch (error) {
+      console.error("[PayoutsManager] Error rejecting payout:", error);
+      toast.error("Failed to reject payout request");
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  // =============================================================================
   // UI HELPERS
   // =============================================================================
 
@@ -959,7 +1138,7 @@ export default function AffiliatePayoutsManager() {
       </div>
 
       {/* Main Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl max-w-lg" style={{ backgroundColor: colors.card, border: `1px solid ${colors.border}` }}>
+      <div className="flex gap-1 p-1 rounded-xl max-w-2xl" style={{ backgroundColor: colors.card, border: `1px solid ${colors.border}` }}>
         <button
           onClick={() => setSelectedTab("orders")}
           className={`flex items-center gap-2 flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all`}
@@ -970,6 +1149,25 @@ export default function AffiliatePayoutsManager() {
         >
           <HiOutlineTableCells className="w-4 h-4" />
           Orders
+        </button>
+        <button
+          onClick={() => setSelectedTab("requests")}
+          className={`flex items-center gap-2 flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative`}
+          style={{
+            backgroundColor: selectedTab === "requests" ? colors.accent : "transparent",
+            color: selectedTab === "requests" ? "white" : colors.textMuted,
+          }}
+        >
+          <HiOutlineClock className="w-4 h-4" />
+          Payout Requests
+          {payoutRequests.length > 0 && (
+            <span
+              className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-bold"
+              style={{ backgroundColor: colors.warning }}
+            >
+              {payoutRequests.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setSelectedTab("summary")}
@@ -1220,6 +1418,123 @@ export default function AffiliatePayoutsManager() {
             )}
           </div>
         </>
+      )}
+
+      {/* Payout Requests Tab */}
+      {selectedTab === "requests" && (
+        <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: colors.border, backgroundColor: colors.bg }}>
+            <div>
+              <h3 className="font-semibold" style={{ color: colors.text }}>Pending Payout Requests</h3>
+              <p className="text-sm" style={{ color: colors.textMuted }}>
+                Affiliates requesting payment from their earnings
+              </p>
+            </div>
+            <button
+              onClick={fetchPayoutRequests}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border hover:bg-gray-50"
+              style={{ borderColor: colors.border, color: colors.textMuted }}
+            >
+              <HiOutlineArrowPath className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead style={{ backgroundColor: colors.bg }}>
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>Affiliate</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>Payment Method</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>Email/Address</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: colors.border }}>
+                {payoutRequests.length > 0 ? (
+                  payoutRequests.map((request) => (
+                    <tr key={request.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-sm" style={{ color: colors.text }}>
+                        {formatDate(request.requested_at || request.created_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: colors.text }}>{request.affiliate_name}</p>
+                          <p className="text-xs" style={{ color: colors.textMuted }}>{request.affiliate_id}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-sm font-semibold" style={{ color: colors.success }}>
+                          {formatCurrency(request.amount)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: colors.paypalLight, color: colors.paypal }}>
+                          <FaPaypal className="w-3 h-3" />
+                          {request.payment_method || "PayPal"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm" style={{ color: colors.textMuted }}>
+                        {request.paypal_address || request.email || "N/A"}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className="px-2.5 py-1 text-xs font-medium rounded-full"
+                          style={{ backgroundColor: colors.warningLight, color: colors.warning }}
+                        >
+                          {request.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          {processingRequestId === request.id ? (
+                            <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: colors.accent, borderTopColor: "transparent" }} />
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleCompletePayoutRequest(request)}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium hover:opacity-80"
+                                style={{ backgroundColor: colors.successLight, color: colors.success }}
+                                title="Mark as Paid"
+                              >
+                                <HiOutlineCheck className="w-3.5 h-3.5" />
+                                Pay
+                              </button>
+                              <button
+                                onClick={() => handleRejectPayoutRequest(request)}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium hover:opacity-80"
+                                style={{ backgroundColor: colors.errorLight, color: colors.error }}
+                                title="Reject"
+                              >
+                                <HiOutlineXMark className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.bg }}>
+                          <HiOutlineCheckCircle className="w-8 h-8" style={{ color: colors.success }} />
+                        </div>
+                        <p className="font-medium" style={{ color: colors.text }}>No pending payout requests</p>
+                        <p className="text-sm" style={{ color: colors.textMuted }}>
+                          When affiliates request payouts, they will appear here
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {/* Affiliate Summary Tab */}

@@ -983,12 +983,15 @@ export default function Partner() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <Avatar name={row.affiliate_id || "Partner"} />
+                        <Avatar name={row.affiliate_name || row.agent_name || row.affiliate_id || "Partner"} />
                         <div>
                           <p className="font-medium" style={{ color: colors.textPrimary }}>
-                            {row.affiliate_id || "N/A"}
+                            {row.affiliate_name || row.agent_name || row.affiliate_id || "N/A"}
                           </p>
                           <p className="text-sm" style={{ color: colors.textSecondary }}>
+                            {row.affiliate_email || `ID: ${row.affiliate_id?.slice(0, 8)}...` || ""}
+                          </p>
+                          <p className="text-xs" style={{ color: colors.textSecondary }}>
                             Customer: {row.customer_number}
                           </p>
                         </div>
@@ -1428,11 +1431,19 @@ export default function Partner() {
               style={{ backgroundColor: colors.inputBg }}
             >
               <div className="flex items-start gap-4">
-                <Avatar name={selectedPartner.affiliate_id || "Partner"} />
+                <Avatar name={selectedPartner.affiliate_name || selectedPartner.agent_name || selectedPartner.affiliate_id || "Partner"} />
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold mb-1" style={{ color: colors.textPrimary }}>
-                    {selectedPartner.affiliate_id || "N/A"}
+                    {selectedPartner.affiliate_name || selectedPartner.agent_name || "Partner"}
                   </h3>
+                  {selectedPartner.affiliate_email && (
+                    <p className="text-sm mb-2" style={{ color: colors.accent }}>
+                      {selectedPartner.affiliate_email}
+                    </p>
+                  )}
+                  <p className="text-sm mb-1" style={{ color: colors.textSecondary }}>
+                    Affiliate ID: {selectedPartner.affiliate_id || "N/A"}
+                  </p>
                   <p className="mb-4" style={{ color: colors.textSecondary }}>
                     Customer: {selectedPartner.customer_number}
                   </p>

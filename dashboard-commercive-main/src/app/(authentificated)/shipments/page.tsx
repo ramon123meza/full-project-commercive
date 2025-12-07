@@ -66,7 +66,7 @@ const getStatusInfo = (status: string | null) => {
 
 export default function ShipmentTracking() {
   const supabase = createClient();
-  const { selectedStore } = useStoreContext();
+  const { selectedStore, dateRange: contextDateRange, setDateRange: setContextDateRange } = useStoreContext();
   const [trackingData, setTrackingData] = useState<
     Database["public"]["Tables"]["trackings"]["Row"][]
   >([]);
@@ -77,7 +77,6 @@ export default function ShipmentTracking() {
   const datePickerRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Set current date only on client side to prevent hydration mismatch
   useEffect(() => {
@@ -107,7 +106,7 @@ export default function ShipmentTracking() {
     },
   ]);
 
-  const [dateRange, setDateRange] = useState<Range[]>([
+  const [localDateRange, setLocalDateRange] = useState<Range[]>([
     {
       startDate: undefined,
       endDate: undefined,
@@ -115,13 +114,22 @@ export default function ShipmentTracking() {
     },
   ]);
 
-  // Set initial date range only on client side
+  // Sync with context date range
   useEffect(() => {
-    const start = getStartOfWeek();
-    const end = getEndOfWeek(start);
-    setDateRange([{ startDate: start, endDate: end, key: "selection" }]);
-    setTmpCurrentDateRange([{ startDate: start, endDate: end, key: "selection" }]);
-  }, []);
+    if (contextDateRange) {
+      setLocalDateRange([{ startDate: contextDateRange.startDate, endDate: contextDateRange.endDate, key: "selection" }]);
+      setTmpCurrentDateRange([{ startDate: contextDateRange.startDate, endDate: contextDateRange.endDate, key: "selection" }]);
+    } else {
+      // Fall back to default if context not ready
+      const start = getStartOfWeek();
+      const end = getEndOfWeek(start);
+      setLocalDateRange([{ startDate: start, endDate: end, key: "selection" }]);
+      setTmpCurrentDateRange([{ startDate: start, endDate: end, key: "selection" }]);
+    }
+  }, [contextDateRange]);
+
+  // Use local date range synced with context
+  const dateRange = localDateRange;
 
   const formatDateForQuery = (date: Date) => date.toISOString().split("Z")[0];
 
@@ -167,7 +175,11 @@ export default function ShipmentTracking() {
   };
 
   const handleApplyTmpDateRange = () => {
-    setDateRange(tmpCurrentDateRange);
+    setLocalDateRange(tmpCurrentDateRange);
+    // Persist to context (and localStorage)
+    if (tmpCurrentDateRange[0].startDate && tmpCurrentDateRange[0].endDate) {
+      setContextDateRange({ startDate: tmpCurrentDateRange[0].startDate, endDate: tmpCurrentDateRange[0].endDate });
+    }
     setShowDatePicker(false);
   };
 
@@ -202,34 +214,6 @@ export default function ShipmentTracking() {
     ).length,
   };
 
-  // Generate timeline dates
-  const generateTimelineDates = () => {
-    if (!dateRange[0].startDate || !dateRange[0].endDate) return [];
-    const dates = [];
-    let current = new Date(dateRange[0].startDate);
-    const end = new Date(dateRange[0].endDate);
-
-    while (current <= end) {
-      dates.push(new Date(current));
-      current.setDate(current.getDate() + 1);
-    }
-    return dates;
-  };
-
-  const timelineDates = generateTimelineDates();
-
-  // Group tracking data by date - uses tracking.created_at (when shipment started)
-  const getTrackingsByDate = (date: Date) => {
-    return filteredTrackingData.filter((tracking) => {
-      const trackingDate = new Date(tracking.created_at);
-      return (
-        trackingDate.getFullYear() === date.getFullYear() &&
-        trackingDate.getMonth() === date.getMonth() &&
-        trackingDate.getDate() === date.getDate()
-      );
-    });
-  };
-
   // Calculate days in transit
   const calculateDaysInTransit = (tracking: any) => {
     if (!currentDate) return 0;
@@ -246,10 +230,6 @@ export default function ShipmentTracking() {
     // For in-transit shipments, calculate from creation to now
     const days = Math.ceil((currentDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
     return days >= 0 ? days : 0;
-  };
-
-  const formatDateShort = (date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
   };
 
   const formatDateRange = () => {
@@ -425,50 +405,55 @@ export default function ShipmentTracking() {
         </div>
       </div>
 
-      {/* Timeline Section */}
-      <div className="flex-1 overflow-hidden">
+      {/* Shipments List Section - Vertical Card Layout */}
+      <div className="flex-1 overflow-auto custom-scrollbar bg-[#F4F5F7] p-4 md:p-6">
         {filteredTrackingData.length > 0 ? (
-          <div className="h-full flex flex-col">
-            {/* Timeline Header */}
-            <div
-              ref={timelineRef}
-              className="bg-white border-b border-[#E5E7EB] overflow-x-auto custom-scrollbar"
-            >
-              <div className="flex min-w-max">
-                {timelineDates.map((date, index) => (
-                  <div
-                    key={index}
-                    className={`flex-shrink-0 w-[180px] px-4 py-3 border-r border-[#E5E7EB] ${
-                      isToday(date) ? "bg-[#D7E8FF]" : ""
-                    }`}
-                  >
-                    <p
-                      className={`text-small font-semibold ${
-                        isToday(date) ? "text-[#3A6EA5]" : "text-[#4B5563]"
-                      }`}
-                    >
-                      {formatDateShort(date)}
-                    </p>
-                    {isToday(date) && (
-                      <span className="text-tiny text-[#3A6EA5] font-medium">Today</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-4">
+            {/* Group shipments by date */}
+            {(() => {
+              // Group trackings by date
+              const groupedByDate: Record<string, typeof filteredTrackingData> = {};
+              filteredTrackingData.forEach((tracking) => {
+                const dateKey = new Date(tracking.created_at).toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                });
+                if (!groupedByDate[dateKey]) {
+                  groupedByDate[dateKey] = [];
+                }
+                groupedByDate[dateKey].push(tracking);
+              });
 
-            {/* Timeline Content */}
-            <div className="flex-1 overflow-auto custom-scrollbar bg-[#FAFAFA]">
-              <div className="flex min-w-max min-h-full">
-                {timelineDates.map((date, dateIndex) => {
-                  const trackingsForDate = getTrackingsByDate(date);
-                  return (
-                    <div
-                      key={dateIndex}
-                      className={`flex-shrink-0 w-[180px] border-r border-[#E5E7EB] p-2 ${
-                        isToday(date) ? "bg-[#F0F7FF]" : ""
-                      }`}
-                    >
+              // Sort dates in descending order (newest first)
+              const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+                return new Date(b).getTime() - new Date(a).getTime();
+              });
+
+              return sortedDates.map((dateKey, dateIndex) => {
+                const trackingsForDate = groupedByDate[dateKey];
+                const dateObj = new Date(trackingsForDate[0].created_at);
+                const isTodayDate = isToday(dateObj);
+
+                return (
+                  <div key={dateKey} className="animate-fade-in-up" style={{ animationDelay: `${dateIndex * 0.05}s` }}>
+                    {/* Date Header */}
+                    <div className={`flex items-center gap-3 mb-3 px-2 ${isTodayDate ? "text-[#3A6EA5]" : "text-[#4B5563]"}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isTodayDate ? "bg-[#D7E8FF]" : "bg-[#E5E7EB]"}`}>
+                        <FiCalendar className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#1B1F3B]">{dateKey}</p>
+                        <p className="text-small">
+                          {trackingsForDate.length} shipment{trackingsForDate.length !== 1 ? "s" : ""}
+                          {isTodayDate && <span className="ml-2 text-[#3A6EA5] font-medium">Today</span>}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Shipment Cards for this date */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {trackingsForDate.map((tracking, trackingIndex) => {
                         const carrier = getCarrierInfo(tracking.tracking_company);
                         const statusInfo = getStatusInfo(tracking.status);
@@ -478,73 +463,77 @@ export default function ShipmentTracking() {
                           <Link
                             key={tracking.id}
                             href={`/shipments/${tracking.order_id}`}
-                            className="block mb-2 animate-fade-in-up"
-                            style={{ animationDelay: `${trackingIndex * 0.05}s` }}
+                            className="block animate-fade-in-up"
+                            style={{ animationDelay: `${(dateIndex * 0.05) + (trackingIndex * 0.02)}s` }}
                           >
-                            <div className="card p-3 cursor-pointer hover:shadow-lg transition-all duration-200 border-l-4"
-                              style={{ borderLeftColor: statusInfo.color }}
+                            <div
+                              className="bg-white rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-200 border border-[#E5E7EB] hover:border-[#3A6EA5] cursor-pointer group"
                             >
-                              {/* Carrier Logo & Name */}
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="w-6 h-6 relative flex-shrink-0">
-                                  <Image
-                                    src={carrier.logo}
-                                    alt={carrier.name}
-                                    width={24}
-                                    height={24}
-                                    className="object-contain"
-                                  />
+                              {/* Top Row: Carrier & Status */}
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                    style={{ backgroundColor: `${carrier.color}15` }}
+                                  >
+                                    <Image
+                                      src={carrier.logo}
+                                      alt={carrier.name}
+                                      width={24}
+                                      height={24}
+                                      className="object-contain"
+                                    />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-[#1B1F3B]">{carrier.name}</p>
+                                    <p className="text-small text-[#4B5563]">
+                                      #{tracking.tracking_number || "N/A"}
+                                    </p>
+                                  </div>
                                 </div>
-                                <span className="text-tiny font-semibold text-[#1B1F3B] truncate">
-                                  {carrier.name}
-                                </span>
-                              </div>
-
-                              {/* Tracking Number */}
-                              <p className="text-tiny text-[#4B5563] truncate mb-2">
-                                #{tracking.tracking_number || "N/A"}
-                              </p>
-
-                              {/* Status Badge */}
-                              <div className="flex items-center justify-between">
-                                <span className={`badge ${statusInfo.badge} !text-[10px] !py-0.5 !px-2`}>
+                                <span className={`badge ${statusInfo.badge}`}>
                                   {statusInfo.label}
                                 </span>
-                                <span className="text-tiny text-[#4B5563]">
-                                  {daysInTransit}d
-                                </span>
                               </div>
 
-                              {/* Route Preview */}
-                              <div className="mt-2 pt-2 border-t border-[#E5E7EB]">
-                                <div className="flex items-center gap-1 text-[10px] text-[#4B5563]">
-                                  <FiMapPin className="w-3 h-3 flex-shrink-0" />
-                                  <span className="truncate flex-1">Origin</span>
-                                  <FiArrowRight className="w-3 h-3 flex-shrink-0" />
-                                  <span className="truncate flex-1">Dest</span>
+                              {/* Middle Row: Order Info */}
+                              <div className="flex items-center gap-4 mb-3 text-small text-[#4B5563]">
+                                <div className="flex items-center gap-1">
+                                  <FiPackage className="w-4 h-4" />
+                                  <span>Order #{tracking.order_id ? String(tracking.order_id).slice(-8) : "N/A"}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <FiClock className="w-4 h-4" />
+                                  <span>{daysInTransit} day{daysInTransit !== 1 ? "s" : ""} in transit</span>
                                 </div>
                               </div>
 
-                              {/* Click indicator */}
-                              <div className="flex items-center justify-end mt-2">
-                                <span className="text-[10px] text-[#3A6EA5] flex items-center gap-1">
-                                  View details
-                                  <FiChevronRight className="w-3 h-3" />
-                                </span>
+                              {/* Bottom Row: Route & Action */}
+                              <div className="flex items-center justify-between pt-3 border-t border-[#E5E7EB]">
+                                <div className="flex items-center gap-2 text-small text-[#4B5563]">
+                                  <FiMapPin className="w-4 h-4 text-[#10B981]" />
+                                  <span>Origin</span>
+                                  <FiArrowRight className="w-4 h-4" />
+                                  <span>Destination</span>
+                                </div>
+                                <div className="flex items-center gap-1 text-small text-[#3A6EA5] font-medium group-hover:gap-2 transition-all">
+                                  <span>View Details</span>
+                                  <FiChevronRight className="w-4 h-4" />
+                                </div>
                               </div>
                             </div>
                           </Link>
                         );
                       })}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         ) : (
           /* Empty State */
-          <div className="h-full flex items-center justify-center bg-white">
+          <div className="h-full flex items-center justify-center bg-white rounded-xl">
             <div className="empty-state">
               <div className="empty-state-icon">
                 <FiPackage className="w-8 h-8" />
@@ -560,7 +549,8 @@ export default function ShipmentTracking() {
                   setStatusFilter("all");
                   const start = getStartOfWeek();
                   const end = getEndOfWeek(start);
-                  setDateRange([{ startDate: start, endDate: end, key: "selection" }]);
+                  setLocalDateRange([{ startDate: start, endDate: end, key: "selection" }]);
+                  setContextDateRange({ startDate: start, endDate: end });
                 }}
                 className="btn btn-primary"
               >

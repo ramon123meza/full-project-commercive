@@ -18,6 +18,12 @@ import { BiMessageSquareDetail } from "react-icons/bi";
 const LAMBDA_URL = process.env.NEXT_PUBLIC_AWS_LAMBDA_URL || "";
 const POLL_INTERVAL = 10000; // 10 seconds
 
+// Props interface for ChatInterface
+interface ChatInterfaceProps {
+  // If true, shows a single unified chat without sidebar (for affiliates)
+  unifiedMode?: boolean;
+}
+
 // Types
 interface Message {
   message_id: string;
@@ -43,7 +49,7 @@ interface Conversation {
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected";
 
-export default function ChatInterface() {
+export default function ChatInterface({ unifiedMode = true }: ChatInterfaceProps) {
   const { selectedStore, userinfo } = useStoreContext();
 
   // State
@@ -103,12 +109,28 @@ export default function ChatInterface() {
       if (data.conversations) {
         setConversations(data.conversations);
         setConnectionStatus("connected");
+
+        // In unified mode, auto-select the most recent open conversation
+        if (unifiedMode && data.conversations.length > 0 && !selectedConversation) {
+          // Find the most recent open conversation, or just the most recent one
+          const openConv = data.conversations.find((c: Conversation) => c.status === "open");
+          const convToSelect = openConv || data.conversations[0];
+          setSelectedConversation(convToSelect);
+
+          // Start fetching messages for this conversation
+          fetchMessages(convToSelect.conversation_id, false);
+
+          // Mark as read if needed
+          if (convToSelect.unread_user > 0) {
+            markMessagesAsRead(convToSelect.conversation_id);
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching conversations:", error);
       setConnectionStatus("disconnected");
     }
-  }, [userinfo?.id]);
+  }, [userinfo?.id, unifiedMode, selectedConversation]);
 
   // Fetch messages for selected conversation
   const fetchMessages = useCallback(async (conversationId: string, showLoading = true) => {
@@ -326,112 +348,116 @@ export default function ChatInterface() {
 
   return (
     <div className="chat-container flex h-full min-h-[400px] overflow-hidden">
-      {/* Sidebar Toggle for Mobile */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="md:hidden fixed bottom-4 left-4 z-50 btn btn-primary btn-icon"
-        aria-label="Toggle conversations"
-      >
-        {sidebarOpen ? <IoClose size={20} /> : <IoMenu size={20} />}
-      </button>
+      {/* Sidebar Toggle for Mobile - Only show if not in unified mode */}
+      {!unifiedMode && (
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="md:hidden fixed bottom-4 left-4 z-50 btn btn-primary btn-icon"
+          aria-label="Toggle conversations"
+        >
+          {sidebarOpen ? <IoClose size={20} /> : <IoMenu size={20} />}
+        </button>
+      )}
 
-      {/* Conversations Sidebar */}
-      <div
-        className={`
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0
-          transition-transform duration-300
-          absolute md:relative z-40
-          w-80 md:w-1/3 lg:w-[320px]
-          h-full flex flex-col
-          bg-white border-r border-gray-200
-        `}
-      >
-        {/* Sidebar Header */}
-        <div className="chat-header flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BiMessageSquareDetail size={24} />
-            <div>
-              <h2 className="font-semibold text-lg">Messages</h2>
-              <ConnectionIndicator />
+      {/* Conversations Sidebar - Hidden in unified mode */}
+      {!unifiedMode && (
+        <div
+          className={`
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+            md:translate-x-0
+            transition-transform duration-300
+            absolute md:relative z-40
+            w-80 md:w-1/3 lg:w-[320px]
+            h-full flex flex-col
+            bg-white border-r border-gray-200
+          `}
+        >
+          {/* Sidebar Header */}
+          <div className="chat-header flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <BiMessageSquareDetail size={24} />
+              <div>
+                <h2 className="font-semibold text-lg">Messages</h2>
+                <ConnectionIndicator />
+              </div>
             </div>
+            {totalUnread > 0 && (
+              <span className="badge badge-error text-white bg-red-500">
+                {totalUnread}
+              </span>
+            )}
           </div>
-          {totalUnread > 0 && (
-            <span className="badge badge-error text-white bg-red-500">
-              {totalUnread}
-            </span>
-          )}
-        </div>
 
-        {/* New Conversation Button */}
-        <div className="p-4 border-b border-gray-200">
-          <button
-            onClick={handleNewConversation}
-            className="btn btn-primary w-full"
-          >
-            <IoChatbubbleEllipsesOutline size={18} />
-            New Conversation
-          </button>
-        </div>
+          {/* New Conversation Button */}
+          <div className="p-4 border-b border-gray-200">
+            <button
+              onClick={handleNewConversation}
+              className="btn btn-primary w-full"
+            >
+              <IoChatbubbleEllipsesOutline size={18} />
+              New Conversation
+            </button>
+          </div>
 
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {conversations.length === 0 ? (
-            <div className="empty-state py-8">
-              <div className="empty-state-icon mx-auto mb-4" style={{ width: 60, height: 60 }}>
-                <BiMessageSquareDetail size={24} />
-              </div>
-              <p className="text-secondary-slate text-small">
-                No conversations yet
-              </p>
-              <p className="text-secondary-slate text-tiny mt-1">
-                Start a new conversation to get help
-              </p>
-            </div>
-          ) : (
-            conversations.map((conv) => (
-              <div
-                key={conv.conversation_id}
-                onClick={() => handleSelectConversation(conv)}
-                className={`
-                  p-4 cursor-pointer transition-all duration-200
-                  border-b border-gray-100 hover:bg-[var(--secondary-sky)]
-                  ${selectedConversation?.conversation_id === conv.conversation_id
-                    ? "bg-[var(--secondary-sky)] border-l-4 border-l-[var(--primary-blue)]"
-                    : ""
-                  }
-                `}
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <span className="font-semibold text-[var(--primary-indigo)] text-small truncate flex-1 mr-2">
-                    {conv.store_url}
-                  </span>
-                  {conv.unread_user > 0 && (
-                    <span className="badge badge-error text-white bg-red-500 text-tiny px-2 py-0.5">
-                      {conv.unread_user}
-                    </span>
-                  )}
+          {/* Conversations List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {conversations.length === 0 ? (
+              <div className="empty-state py-8">
+                <div className="empty-state-icon mx-auto mb-4" style={{ width: 60, height: 60 }}>
+                  <BiMessageSquareDetail size={24} />
                 </div>
-                <p className="text-[var(--secondary-slate)] text-small truncate">
-                  {conv.last_message || "No messages"}
+                <p className="text-secondary-slate text-small">
+                  No conversations yet
                 </p>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-tiny text-gray-400">
-                    {formatDate(new Date(conv.updated_at).toISOString())}
-                  </span>
-                  <span
-                    className={`text-tiny font-medium ${
-                      conv.status === "open" ? "text-green-600" : "text-gray-400"
-                    }`}
-                  >
-                    {conv.status === "open" ? "Active" : "Closed"}
-                  </span>
-                </div>
+                <p className="text-secondary-slate text-tiny mt-1">
+                  Start a new conversation to get help
+                </p>
               </div>
-            ))
-          )}
+            ) : (
+              conversations.map((conv) => (
+                <div
+                  key={conv.conversation_id}
+                  onClick={() => handleSelectConversation(conv)}
+                  className={`
+                    p-4 cursor-pointer transition-all duration-200
+                    border-b border-gray-100 hover:bg-[var(--secondary-sky)]
+                    ${selectedConversation?.conversation_id === conv.conversation_id
+                      ? "bg-[var(--secondary-sky)] border-l-4 border-l-[var(--primary-blue)]"
+                      : ""
+                    }
+                  `}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-semibold text-[var(--primary-indigo)] text-small truncate flex-1 mr-2">
+                      {conv.store_url}
+                    </span>
+                    {conv.unread_user > 0 && (
+                      <span className="badge badge-error text-white bg-red-500 text-tiny px-2 py-0.5">
+                        {conv.unread_user}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[var(--secondary-slate)] text-small truncate">
+                    {conv.last_message || "No messages"}
+                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-tiny text-gray-400">
+                      {formatDate(new Date(conv.updated_at).toISOString())}
+                    </span>
+                    <span
+                      className={`text-tiny font-medium ${
+                        conv.status === "open" ? "text-green-600" : "text-gray-400"
+                      }`}
+                    >
+                      {conv.status === "open" ? "Active" : "Closed"}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-[var(--neutral-gray)] min-w-0 min-h-0 overflow-hidden">
@@ -439,7 +465,9 @@ export default function ChatInterface() {
           // New Conversation View
           <>
             <div className="chat-header flex-shrink-0">
-              <h2 className="font-semibold text-lg">New Conversation</h2>
+              <h2 className="font-semibold text-lg">
+                {unifiedMode ? "Support Chat" : "New Conversation"}
+              </h2>
               <p className="text-white/70 text-small">
                 Chat with our AI assistant or request human support
               </p>
@@ -510,7 +538,7 @@ export default function ChatInterface() {
             <div className="chat-header flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="font-semibold text-lg">
-                  {selectedConversation?.store_url || "Chat"}
+                  {unifiedMode ? "Support Chat" : (selectedConversation?.store_url || "Chat")}
                 </h2>
                 <div className="flex items-center gap-3 mt-1">
                   <span

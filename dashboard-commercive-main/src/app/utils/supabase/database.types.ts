@@ -954,6 +954,8 @@ export type Database = {
           uid: string | null
           user_id: string | null
           uuid: string | null
+          affiliate_name: string | null
+          affiliate_email: string | null
         }
         Relationships: [
           {

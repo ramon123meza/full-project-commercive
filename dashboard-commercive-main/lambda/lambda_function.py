@@ -39,6 +39,13 @@ affiliate_links_table = dynamodb.Table(f"{TABLE_PREFIX}affiliate_links")
 leads_table = dynamodb.Table(f"{TABLE_PREFIX}leads")
 payments_table = dynamodb.Table(f"{TABLE_PREFIX}affiliate_payments")
 
+# Tables - User Preferences (for cross-device persistence)
+try:
+    user_preferences_table = dynamodb.Table(f"{TABLE_PREFIX}user_preferences")
+except Exception as e:
+    print(f"Note: User preferences table not available yet: {e}")
+    user_preferences_table = None
+
 # Tables - CRM Phase 2 (created by setup_database_2.py)
 try:
     affiliate_orders_table = dynamodb.Table(f"{TABLE_PREFIX}affiliate_orders")
@@ -1035,6 +1042,7 @@ def create_affiliate_order(body: Dict[str, Any]) -> Dict[str, Any]:
         order_item = {
             'order_id': order_id,
             'affiliate_id': body['affiliate_id'],
+            'affiliate_name': body.get('affiliate_name', body['affiliate_id']),  # Store affiliate name
             'customer_code': body['customer_code'],
             'store_name': body.get('store_name', ''),
             'order_number': body['order_number'],
@@ -1095,9 +1103,13 @@ def bulk_import_orders(body: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     commission_earned = invoice_total * commission_rate
 
+                affiliate_id = order_data.get('affiliate_id', '')
+                affiliate_name = order_data.get('affiliate_name', affiliate_id)  # Default to affiliate_id if name not provided
+
                 order_item = {
                     'order_id': order_id,
-                    'affiliate_id': order_data.get('affiliate_id', ''),
+                    'affiliate_id': affiliate_id,
+                    'affiliate_name': affiliate_name,  # Store affiliate name
                     'customer_code': order_data.get('customer_code', order_data.get('customer_number', '')),
                     'store_name': order_data.get('store_name', ''),
                     'order_number': str(order_data.get('order_number', '')),
@@ -1490,11 +1502,13 @@ def record_payment(body: Dict[str, Any]) -> Dict[str, Any]:
     """POST /crm/payments/record - Record a payment for an affiliate"""
     try:
         affiliate_id = body.get('affiliate_id')
+        affiliate_name = body.get('affiliate_name', affiliate_id)  # Include affiliate name
         amount = body.get('amount', 0)
         orders_paid = body.get('orders_paid', 0)
         payment_method = body.get('payment_method', 'paypal')
         payment_reference = body.get('payment_reference', '')
         paypal_email = body.get('paypal_email', '')
+        payment_date = body.get('payment_date', str(current_timestamp()))  # Allow custom payment date
 
         if not affiliate_id:
             return simple_response(400, {'error': 'Missing affiliate_id'})
@@ -1505,18 +1519,20 @@ def record_payment(body: Dict[str, Any]) -> Dict[str, Any]:
         payment_record = {
             'payment_id': payment_id,
             'affiliate_id': affiliate_id,
+            'affiliate_name': affiliate_name,  # Store affiliate name
             'amount': Decimal(str(amount)),
             'orders_count': orders_paid,
             'payment_method': payment_method,
             'payment_reference': payment_reference or payment_id,
             'paypal_email': paypal_email,
+            'payment_date': payment_date,  # Store payment date
             'status': 'completed',
             'created_at': str(now)
         }
 
         payments_table.put_item(Item=payment_record)
 
-        print(f"[CRM] Recorded payment {payment_id} for affiliate {affiliate_id}: ${amount}")
+        print(f"[CRM] Recorded payment {payment_id} for affiliate {affiliate_name} ({affiliate_id}): ${amount}")
 
         return simple_response(200, {
             'success': True,
@@ -1525,6 +1541,218 @@ def record_payment(body: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception as e:
         print(f"Error in record_payment: {str(e)}")
+        return simple_response(500, {'error': 'Internal server error', 'message': str(e)})
+
+
+# =============================================================================
+# USER PREFERENCES ENDPOINTS (Cross-device persistence)
+# =============================================================================
+
+def get_user_preferences(params: Dict[str, str]) -> Dict[str, Any]:
+    """GET /preferences/get?user_id=xxx - Get user preferences (selected store, date range)"""
+    try:
+        user_id = params.get('user_id')
+
+        if not user_id:
+            return simple_response(400, {'error': 'Missing user_id parameter'})
+
+        if user_preferences_table is None:
+            return simple_response(503, {'error': 'User preferences table not available'})
+
+        response = user_preferences_table.get_item(Key={'user_id': user_id})
+        preferences = response.get('Item')
+
+        if preferences:
+            return simple_response(200, {
+                'success': True,
+                'preferences': preferences
+            })
+        else:
+            return simple_response(200, {
+                'success': True,
+                'preferences': None,
+                'message': 'No preferences found for user'
+            })
+
+    except Exception as e:
+        print(f"Error in get_user_preferences: {str(e)}")
+        return simple_response(500, {'error': 'Internal server error', 'message': str(e)})
+
+
+def set_user_preferences(body: Dict[str, Any]) -> Dict[str, Any]:
+    """POST /preferences/set - Set user preferences (selected store, date range)"""
+    try:
+        user_id = body.get('user_id')
+
+        if not user_id:
+            return simple_response(400, {'error': 'Missing user_id'})
+
+        if user_preferences_table is None:
+            return simple_response(503, {'error': 'User preferences table not available'})
+
+        now = current_timestamp()
+
+        # Build the preferences item
+        preferences_item = {
+            'user_id': user_id,
+            'updated_at': now
+        }
+
+        # Add store preferences if provided
+        if body.get('selected_store_id') is not None:
+            preferences_item['selected_store_id'] = body['selected_store_id']
+        if body.get('selected_store_url'):
+            preferences_item['selected_store_url'] = body['selected_store_url']
+        if body.get('selected_store_name'):
+            preferences_item['selected_store_name'] = body['selected_store_name']
+
+        # Add date range preferences if provided
+        if body.get('date_range_start'):
+            preferences_item['date_range_start'] = body['date_range_start']
+        if body.get('date_range_end'):
+            preferences_item['date_range_end'] = body['date_range_end']
+
+        # Check if record exists, to preserve created_at
+        try:
+            existing = user_preferences_table.get_item(Key={'user_id': user_id})
+            if existing.get('Item'):
+                preferences_item['created_at'] = existing['Item'].get('created_at', now)
+            else:
+                preferences_item['created_at'] = now
+        except Exception:
+            preferences_item['created_at'] = now
+
+        # Save preferences
+        user_preferences_table.put_item(Item=preferences_item)
+
+        print(f"[Preferences] Saved preferences for user {user_id}")
+
+        return simple_response(200, {
+            'success': True,
+            'message': 'Preferences saved successfully'
+        })
+
+    except Exception as e:
+        print(f"Error in set_user_preferences: {str(e)}")
+        return simple_response(500, {'error': 'Internal server error', 'message': str(e)})
+
+
+def update_store_preference(body: Dict[str, Any]) -> Dict[str, Any]:
+    """POST /preferences/store - Update only the store preference"""
+    try:
+        user_id = body.get('user_id')
+        store_id = body.get('store_id')
+        store_url = body.get('store_url', '')
+        store_name = body.get('store_name', '')
+
+        if not user_id:
+            return simple_response(400, {'error': 'Missing user_id'})
+
+        if store_id is None:
+            return simple_response(400, {'error': 'Missing store_id'})
+
+        if user_preferences_table is None:
+            return simple_response(503, {'error': 'User preferences table not available'})
+
+        now = current_timestamp()
+
+        # Use update expression to only update store fields
+        update_expression = 'SET selected_store_id = :sid, selected_store_url = :surl, selected_store_name = :sname, updated_at = :now'
+        expression_values = {
+            ':sid': store_id,
+            ':surl': store_url,
+            ':sname': store_name,
+            ':now': now
+        }
+
+        # Try to update existing record
+        try:
+            user_preferences_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+        except ClientError as e:
+            # If record doesn't exist, create it
+            if e.response['Error']['Code'] == 'ValidationException':
+                user_preferences_table.put_item(Item={
+                    'user_id': user_id,
+                    'selected_store_id': store_id,
+                    'selected_store_url': store_url,
+                    'selected_store_name': store_name,
+                    'created_at': now,
+                    'updated_at': now
+                })
+            else:
+                raise
+
+        print(f"[Preferences] Updated store preference for user {user_id}: {store_name}")
+
+        return simple_response(200, {
+            'success': True,
+            'message': 'Store preference updated'
+        })
+
+    except Exception as e:
+        print(f"Error in update_store_preference: {str(e)}")
+        return simple_response(500, {'error': 'Internal server error', 'message': str(e)})
+
+
+def update_date_range_preference(body: Dict[str, Any]) -> Dict[str, Any]:
+    """POST /preferences/date-range - Update only the date range preference"""
+    try:
+        user_id = body.get('user_id')
+        date_range_start = body.get('date_range_start')
+        date_range_end = body.get('date_range_end')
+
+        if not user_id:
+            return simple_response(400, {'error': 'Missing user_id'})
+
+        if not date_range_start or not date_range_end:
+            return simple_response(400, {'error': 'Missing date_range_start or date_range_end'})
+
+        if user_preferences_table is None:
+            return simple_response(503, {'error': 'User preferences table not available'})
+
+        now = current_timestamp()
+
+        # Use update expression to only update date range fields
+        update_expression = 'SET date_range_start = :start, date_range_end = :end, updated_at = :now'
+        expression_values = {
+            ':start': date_range_start,
+            ':end': date_range_end,
+            ':now': now
+        }
+
+        # Try to update existing record
+        try:
+            user_preferences_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+        except ClientError as e:
+            # If record doesn't exist, create it
+            if e.response['Error']['Code'] == 'ValidationException':
+                user_preferences_table.put_item(Item={
+                    'user_id': user_id,
+                    'date_range_start': date_range_start,
+                    'date_range_end': date_range_end,
+                    'created_at': now,
+                    'updated_at': now
+                })
+            else:
+                raise
+
+        print(f"[Preferences] Updated date range preference for user {user_id}")
+
+        return simple_response(200, {
+            'success': True,
+            'message': 'Date range preference updated'
+        })
+
+    except Exception as e:
+        print(f"Error in update_date_range_preference: {str(e)}")
         return simple_response(500, {'error': 'Internal server error', 'message': str(e)})
 
 
@@ -1589,7 +1817,11 @@ def lambda_handler(event, context):
                     'crm/summary',
                     'crm/leads',
                     'crm/payments/history',
-                    'crm/payments/record'
+                    'crm/payments/record',
+                    'preferences/get',
+                    'preferences/set',
+                    'preferences/store',
+                    'preferences/date-range'
                 ]
             })
 
@@ -1644,6 +1876,16 @@ def lambda_handler(event, context):
             return get_payment_history(query_params)
         elif action == 'crm/payments/record':
             return record_payment(body)
+
+        # User Preferences endpoints (cross-device persistence)
+        elif action == 'preferences/get':
+            return get_user_preferences(query_params)
+        elif action == 'preferences/set':
+            return set_user_preferences(body)
+        elif action == 'preferences/store':
+            return update_store_preference(body)
+        elif action == 'preferences/date-range':
+            return update_date_range_preference(body)
 
         # Alternative action names for compatibility
         elif action == 'leads/submit':

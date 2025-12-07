@@ -228,7 +228,7 @@ const QuickActions = () => (
 export default function Home() {
   const supabase = createClient();
   const pickerRef = useRef<HTMLDivElement | null>(null);
-  const { selectedStore, stores, userinfo, allStores } = useStoreContext();
+  const { selectedStore, stores, userinfo, allStores, dateRange: contextDateRange, setDateRange: setContextDateRange } = useStoreContext();
   const storeUrl = selectedStore?.store_url || null;
   const userStores = userinfo?.role === "user" ? stores : allStores;
 
@@ -247,7 +247,8 @@ export default function Home() {
 
   const [showPicker, setShowPicker] = useState(false);
   const [tempRange, setTempRange] = useState<Range[]>([{ startDate: new Date(), endDate: new Date(), key: "selection" }]);
-  const [dateRange, setDateRange] = useState<Range[]>([{ startDate: new Date(), endDate: new Date(), key: "selection" }]);
+  // Use context date range if available, otherwise local state
+  const [localDateRange, setLocalDateRange] = useState<Range[]>([{ startDate: new Date(), endDate: new Date(), key: "selection" }]);
   const [compareRange, setCompareRange] = useState<Range[]>([{ startDate: new Date(), endDate: new Date(), key: "selection" }]);
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<OrderData[]>([]);
@@ -255,14 +256,23 @@ export default function Home() {
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
   const [chartData, setChartData] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
 
-  // Initialize date ranges
+  // Sync local date range with context date range
   useEffect(() => {
-    const current = getWeekRange(0);
-    const compare = getWeekRange(-1);
-    setDateRange([{ startDate: current.start, endDate: current.end, key: "selection" }]);
-    setTempRange([{ startDate: current.start, endDate: current.end, key: "selection" }]);
-    setCompareRange([{ startDate: compare.start, endDate: compare.end, key: "selection" }]);
-  }, []);
+    if (contextDateRange) {
+      setLocalDateRange([{ startDate: contextDateRange.startDate, endDate: contextDateRange.endDate, key: "selection" }]);
+      setTempRange([{ startDate: contextDateRange.startDate, endDate: contextDateRange.endDate, key: "selection" }]);
+      // Calculate compare range (previous week)
+      const daysDiff = Math.ceil((contextDateRange.endDate.getTime() - contextDateRange.startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const compareStart = new Date(contextDateRange.startDate);
+      compareStart.setDate(compareStart.getDate() - daysDiff - 1);
+      const compareEnd = new Date(contextDateRange.endDate);
+      compareEnd.setDate(compareEnd.getDate() - daysDiff - 1);
+      setCompareRange([{ startDate: compareStart, endDate: compareEnd, key: "selection" }]);
+    }
+  }, [contextDateRange]);
+
+  // Use context-synced date range
+  const dateRange = localDateRange;
 
   // Click outside handler
   useEffect(() => {
@@ -419,7 +429,14 @@ export default function Home() {
                 <DateRangePicker ranges={tempRange} onChange={(r: any) => setTempRange([r.selection])} moveRangeOnFirstSelection={false} />
                 <div className="flex justify-end gap-2 p-3 border-t border-gray-100">
                   <button className="btn btn-ghost btn-sm" onClick={() => setShowPicker(false)}>Cancel</button>
-                  <button className="btn btn-primary btn-sm" onClick={() => { setDateRange(tempRange); setShowPicker(false); }}>Apply</button>
+                  <button className="btn btn-primary btn-sm" onClick={() => {
+                    setLocalDateRange(tempRange);
+                    // Persist to context (and localStorage)
+                    if (tempRange[0].startDate && tempRange[0].endDate) {
+                      setContextDateRange({ startDate: tempRange[0].startDate, endDate: tempRange[0].endDate });
+                    }
+                    setShowPicker(false);
+                  }}>Apply</button>
                 </div>
               </div>
             )}

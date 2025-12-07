@@ -261,7 +261,7 @@ const UserProfile: React.FC<{
 // Main Sidebar Component
 export default function Sidebar({ isOpen, handleToggleSidebar }: SidebarProps) {
   const pathname = usePathname();
-  const { selectedStore, setSelectedStore, stores, allStores, userinfo } = useStoreContext();
+  const { selectedStore, selectStore, stores, allStores, userinfo } = useStoreContext();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const isAdmin = pathname?.includes("/admin");
@@ -280,8 +280,9 @@ export default function Sidebar({ isOpen, handleToggleSidebar }: SidebarProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Use selectStore for immediate localStorage persistence
   const handleStoreSelect = (store: StoreRow) => {
-    setSelectedStore(store);
+    selectStore(store);
   };
 
   // Desktop Sidebar

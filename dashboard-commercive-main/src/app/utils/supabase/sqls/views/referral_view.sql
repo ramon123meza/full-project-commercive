@@ -18,20 +18,25 @@ select
   r.client_niche,
   r.client_group,
   acs.uid,
-  acs.commission_method,
-  acs.commission_rate,
+  coalesce(acs.commission_method, 2) as commission_method,
+  coalesce(acs.commission_rate, 0.01) as commission_rate,
   acs.affiliate,
   acs.customer_id,
   afs.user_id,
+  -- Affiliate user info (linked via affiliates table)
+  u.user_name as affiliate_name,
+  u.email as affiliate_email,
   case
     when acs.commission_method = 1 then acs.commission_rate * r.quantity_of_order::numeric
     when acs.commission_method = 2 then acs.commission_rate * r.invoice_total
-    else 0::numeric
+    -- Default: 1% of invoice_total when no commission setting exists
+    else 0.01 * r.invoice_total
   end as total_commission
 from
   referrals r
   left join affiliate_customer_setting acs on acs.affiliate = r.affiliate_id
   and acs.customer_id = r.customer_number
   left join affiliates afs on afs.affiliate_id = r.affiliate_id
+  left join "user" u on u.id = afs.user_id
   ;
 GRANT SELECT ON referral_view to authenticated;
