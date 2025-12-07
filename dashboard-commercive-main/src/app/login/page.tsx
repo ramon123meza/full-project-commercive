@@ -1,8 +1,8 @@
 "use client";
 
 import CustomButton from "@/components/ui/custom-button";
-import { useRouter } from "next/navigation";
-import { FormEventHandler, useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEventHandler, useState, useEffect, useRef, Suspense } from "react";
 import { toast } from "react-toastify";
 import { createClient } from "../utils/supabase/client";
 import { IoIosEye } from "react-icons/io";
@@ -402,8 +402,10 @@ function StatCard({ stat, index }: { stat: typeof stats[0]; index: number }) {
   );
 }
 
-export default function LoginPage() {
+// Inner component that uses useSearchParams
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -415,6 +417,28 @@ export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  // Handle URL parameters for email verification redirect
+  useEffect(() => {
+    const verified = searchParams.get("verified");
+    const showModal = searchParams.get("showModal");
+
+    if (verified === "true" || showModal === "true") {
+      // Auto-open login modal after email verification
+      setShowLoginModal(true);
+
+      if (verified === "true") {
+        // Show success toast for verified email
+        toast.success("Email verified successfully! Please sign in to continue.");
+      }
+
+      // Clean up URL parameters
+      const url = new URL(window.location.href);
+      url.searchParams.delete("verified");
+      url.searchParams.delete("showModal");
+      window.history.replaceState({}, "", url.pathname);
+    }
+  }, [searchParams]);
 
   // Handle scroll for navbar background
   useEffect(() => {
@@ -1016,5 +1040,14 @@ export default function LoginPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Main export with Suspense wrapper for useSearchParams
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#5B21B6] to-[#8e52f2]"><div className="text-white text-lg">Loading...</div></div>}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

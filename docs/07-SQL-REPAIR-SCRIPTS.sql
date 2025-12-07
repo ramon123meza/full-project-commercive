@@ -247,7 +247,95 @@ UNIQUE (user_id, store_id);
 
 
 -- =====================================================
--- PART 6: VERIFY REPAIRS
+-- PART 6: RECREATE DATABASE VIEWS
+-- =====================================================
+-- These views are critical for the dashboard to display affiliate and referral data
+
+-- 6.1: Recreate referral_view with user info
+DROP VIEW IF EXISTS referral_view;
+
+CREATE VIEW public.referral_view WITH (security_invoker = on) AS
+SELECT
+  r.id,
+  r.created_at,
+  r.store_name,
+  r.quantity_of_order,
+  r.order_number,
+  r.order_time,
+  r.customer_number,
+  r.uuid,
+  r.affiliate_id,
+  r.agent_name,
+  r.invoice_total,
+  r.business_type,
+  r.client_country,
+  r.client_niche,
+  r.client_group,
+  acs.uid,
+  COALESCE(acs.commission_method, 2) AS commission_method,
+  COALESCE(acs.commission_rate, 0.01) AS commission_rate,
+  acs.affiliate,
+  acs.customer_id,
+  afs.user_id,
+  -- Affiliate user info (linked via affiliates table)
+  COALESCE(
+    NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''),
+    u.user_name
+  ) AS affiliate_name,
+  u.email AS affiliate_email,
+  u.first_name AS affiliate_first_name,
+  u.last_name AS affiliate_last_name,
+  CASE
+    WHEN acs.commission_method = 1 THEN acs.commission_rate * r.quantity_of_order::numeric
+    WHEN acs.commission_method = 2 THEN acs.commission_rate * r.invoice_total
+    ELSE 0.01 * r.invoice_total
+  END AS total_commission
+FROM
+  referrals r
+  LEFT JOIN affiliate_customer_setting acs ON acs.affiliate = r.affiliate_id
+    AND acs.customer_id = r.customer_number
+  LEFT JOIN affiliates afs ON afs.affiliate_id = r.affiliate_id
+  LEFT JOIN "user" u ON u.id = afs.user_id;
+
+GRANT SELECT ON referral_view TO authenticated;
+
+-- 6.2: Recreate payout_view
+DROP VIEW IF EXISTS payout_view;
+
+CREATE VIEW public.payout_view WITH (security_invoker = on) AS
+SELECT
+  p.user_id,
+  u.email,
+  p.status,
+  SUM(p.amount) AS total_amount,
+  COUNT(p.id) AS total_count
+FROM payouts p
+LEFT JOIN "user" u ON u.id = p.user_id
+GROUP BY p.user_id, u.email, p.status;
+
+GRANT SELECT ON payout_view TO authenticated;
+
+-- 6.3: Recreate referral_summary view
+DROP VIEW IF EXISTS referral_summary;
+
+CREATE VIEW public.referral_summary WITH (security_invoker = on) AS
+SELECT
+  rv.affiliate_id,
+  rv.user_id,
+  rv.affiliate_name,
+  rv.affiliate_email,
+  SUM(rv.total_commission) AS total_amount,
+  COUNT(rv.id) AS count,
+  SUM(rv.quantity_of_order) AS order_count,
+  ARRAY_AGG(DISTINCT rv.customer_number) AS customer_ids
+FROM referral_view rv
+GROUP BY rv.affiliate_id, rv.user_id, rv.affiliate_name, rv.affiliate_email;
+
+GRANT SELECT ON referral_summary TO authenticated;
+
+
+-- =====================================================
+-- PART 7: VERIFY REPAIRS
 -- =====================================================
 
 -- Run this after all repairs to verify the state:
@@ -278,7 +366,7 @@ ORDER BY u.role, u.email;
 
 
 -- =====================================================
--- PART 7: CREATE ADMIN USER (If none exists)
+-- PART 8: CREATE ADMIN USER (If none exists)
 -- =====================================================
 -- Only run this if you need to create an admin user
 

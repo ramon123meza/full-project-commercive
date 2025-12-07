@@ -24,8 +24,13 @@ select
   acs.customer_id,
   afs.user_id,
   -- Affiliate user info (linked via affiliates table)
-  u.user_name as affiliate_name,
+  coalesce(
+    nullif(trim(concat(u.first_name, ' ', u.last_name)), ''),
+    u.user_name
+  ) as affiliate_name,
   u.email as affiliate_email,
+  u.first_name as affiliate_first_name,
+  u.last_name as affiliate_last_name,
   case
     when acs.commission_method = 1 then acs.commission_rate * r.quantity_of_order::numeric
     when acs.commission_method = 2 then acs.commission_rate * r.invoice_total

@@ -258,13 +258,16 @@ export default function Affiliate() {
         },
       },
       {
-        field: "user_name",
-        headerName: "User Name",
+        field: "name",
+        headerName: "Name",
         customRender: (row: AffiliateRow) => {
+          const firstName = row.user?.first_name || "";
+          const lastName = row.user?.last_name || "";
+          const fullName = `${firstName} ${lastName}`.trim();
           return (
             <div className="flex gap-2">
               <div>
-                <p className="text-white">{row.user?.user_name}</p>
+                <p className="text-white">{fullName || row.user?.user_name || "N/A"}</p>
               </div>
             </div>
           );

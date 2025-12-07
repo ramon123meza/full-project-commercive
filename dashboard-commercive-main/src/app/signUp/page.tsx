@@ -194,16 +194,26 @@ function SignupForm() {
     setIsLoading(true);
 
     try {
+      // Get the base URL for redirect
+      const baseUrl = window.location.origin;
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          // Redirect to login page with modal=true to open login modal automatically
+          emailRedirectTo: `${baseUrl}/login?verified=true&showModal=true`,
           data: {
             firstName,
             lastName,
+            first_name: firstName,
+            last_name: lastName,
             userName: `${firstName.toLowerCase()}_${lastName.toLowerCase()}`,
+            user_name: `${firstName.toLowerCase()}_${lastName.toLowerCase()}`,
             phoneNumber: phoneNumber.replace(/\D/g, ""),
+            phone_number: phoneNumber.replace(/\D/g, ""),
             referralCode: "",
+            referral_code: "",
             visible_store: [],
             role: "user",
           },
@@ -220,10 +230,31 @@ function SignupForm() {
           toast.error(error.message);
         }
       } else {
-        // Auto-create affiliate request for new users with Pending status
+        // Create records for new users
         if (data?.user?.id) {
           const affiliateId = generateAffiliateId();
+          const userName = `${firstName.toLowerCase()}_${lastName.toLowerCase()}`;
+
           try {
+            // First, create user record in user table
+            const { error: userError } = await supabase.from("user").insert({
+              id: data.user.id,
+              email: email,
+              first_name: firstName,
+              last_name: lastName,
+              user_name: userName,
+              phone_number: phoneNumber.replace(/\D/g, ""),
+              role: "user",
+              referral_code: "",
+              visible_pages: [],
+              visible_store: [],
+            });
+
+            if (userError) {
+              console.error("Failed to create user record:", userError);
+              // Continue anyway - layout.tsx will create user record on first authenticated visit
+            }
+
             // Create affiliate record with Pending status - user must be approved by admin
             const { error: affiliateError } = await supabase.from("affiliates").insert({
               user_id: data.user.id,
@@ -251,8 +282,8 @@ function SignupForm() {
               }
             }
           } catch (affiliateError) {
-            // Don't block signup if affiliate creation fails
-            console.error("Failed to create affiliate record:", affiliateError);
+            // Don't block signup if record creation fails
+            console.error("Failed to create records:", affiliateError);
           }
         }
         // Show success modal instead of toast
