@@ -2,337 +2,338 @@
 
 ## Overview
 
-This guide is for **affiliates** (store owners/merchants) using the Commercive Dashboard. After installing the Commercive Shopify app, you'll have access to view your store data, track inventory, monitor shipments, and more.
+This guide is for **affiliates** (store owners/merchants) using the Commercive Dashboard. This guide explains how to sign up, get approved, connect your Shopify store, and use all dashboard features.
 
 ---
 
-## Getting Started
+## Getting Started - Complete Flow
 
-### Step 1: Install the Shopify App
-
-1. Visit the Commercive app listing in the Shopify App Store
-2. Click "Add app" to install on your store
-3. Authorize the required permissions
-4. Wait for initial data sync to complete
-
-### Step 2: Access Your Dashboard
-
-1. Navigate to `https://dashboard.commercive.co`
-2. Click "Create an account" or "Sign In"
-3. Use the email associated with your Shopify store
-4. Complete the signup process if first time
-
-### Step 3: Wait for Approval
-
-- Your account starts with "Pending" status
-- An admin will review and approve your account
-- You'll receive email notification when approved
-- Once approved, you can access your store data
-
----
-
-## Dashboard Overview
-
-### Home Page
-
-Your home dashboard shows key metrics for your store:
-
-#### Key Performance Indicators (KPIs)
-
-| Metric | Description |
-|--------|-------------|
-| **Total Sales** | Revenue from paid orders in selected period |
-| **Fulfilled Orders** | Orders that have been shipped |
-| **Pending Shipments** | Orders awaiting fulfillment |
-| **Average Order Value** | Total sales divided by number of orders |
-
-#### Charts and Graphs
-
-- **Sales Trend** - Visual representation of your sales over time
-- **Order Status** - Breakdown of orders by fulfillment status
-- **Top Products** - Your best-selling items
-
-#### Using Filters
-
-1. **Date Range** - Click to select custom date range
-2. Use preset options: Today, Last 7 Days, Last 30 Days, This Month
-3. All dashboard data updates based on your selection
-
----
-
-## Inventory Management
-
-### Viewing Your Inventory
-
-1. Navigate to **Inventory** from the sidebar
-2. View all your products with current stock levels
-3. Use search to find specific products by SKU or name
-
-### Understanding Stock Levels
-
-| Field | Meaning |
-|-------|---------|
-| **Available** | Quantity ready to sell |
-| **Committed** | Reserved for pending orders |
-| **Incoming** | Expected from suppliers |
-| **On Hand** | Physical count in warehouse |
-| **Reserved** | Held for specific purposes |
-
-### Critical Items
-
-Products with low stock are highlighted as "Critical Items":
-- Red indicator for out-of-stock (0 available)
-- Orange indicator for low stock (below threshold)
-
-### Taking Action on Low Stock
-
-1. Review critical items list
-2. Note which products need reordering
-3. Contact your supplier or adjust Shopify inventory
-4. Dashboard updates automatically via webhooks
-
----
-
-## Shipment Tracking
-
-### Viewing Shipments
-
-1. Navigate to **Shipments** from the sidebar
-2. View all orders with tracking information
-3. Filter by status to find specific shipments
-
-### Shipment Statuses
-
-| Status | Description |
-|--------|-------------|
-| **Pending** | Fulfillment not yet started |
-| **In Transit** | Package on the way |
-| **Out for Delivery** | Package arriving today |
-| **Delivered** | Successfully delivered |
-| **Exception** | Delivery issue (investigate) |
-
-### Tracking Details
-
-Each shipment shows:
-- Order number
-- Customer information
-- Tracking number
-- Carrier (FedEx, UPS, USPS, etc.)
-- Current status
-- Estimated delivery date
-
----
-
-## Understanding Your Data
-
-### Where Does the Data Come From?
-
-Your dashboard data comes directly from your Shopify store:
+### Step-by-Step Journey
 
 ```
-Your Shopify Store
-      ↓
-  Commercive App (installed in your store)
-      ↓
-  Processes and stores in database
-      ↓
-  Dashboard displays the data
+┌─────────────────────────────────────────────────────────────────────┐
+│                     YOUR JOURNEY TO FULL ACCESS                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  STEP 1: CREATE ACCOUNT                                             │
+│  ────────────────────────                                           │
+│  • Visit dashboard.commercive.co                                    │
+│  • Click "Create an account"                                        │
+│  • Fill in: First name, Last name, Email, Phone, Password           │
+│  • Submit form                                                       │
+│                                                                      │
+│  EXPECTED: Success modal shows "Check Your Email"                   │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  STEP 2: VERIFY EMAIL                                               │
+│  ───────────────────────                                            │
+│  • Check your email inbox (and spam folder)                         │
+│  • Click the verification link in the email                         │
+│  • You'll be redirected to login page                               │
+│                                                                      │
+│  EXPECTED: Login modal opens automatically with success message     │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  STEP 3: LOG IN & WAIT FOR APPROVAL                                 │
+│  ─────────────────────────────────────                              │
+│  • Enter your email and password                                    │
+│  • Click "Sign In"                                                   │
+│                                                                      │
+│  EXPECTED: "Account Pending Approval" screen                        │
+│  ─────────────────────────────────────────                          │
+│  You'll see a message explaining:                                   │
+│  • Your account is being reviewed by an administrator               │
+│  • Typical approval time: 24-48 hours                               │
+│  • You'll be notified when approved                                 │
+│                                                                      │
+│  NOTE: This is NORMAL - all new accounts require admin approval     │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  STEP 4: AFTER APPROVAL - CONNECT SHOPIFY                           │
+│  ─────────────────────────────────────────────                      │
+│  • Once approved, log in again                                      │
+│                                                                      │
+│  EXPECTED: "Connect Your Shopify Store" screen                      │
+│  ───────────────────────────────────────────────                    │
+│  You'll see:                                                         │
+│  • Instructions to install the Commercive app                       │
+│  • "Install Commercive App" button                                  │
+│  • 4-step installation guide                                        │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  STEP 5: INSTALL SHOPIFY APP                                        │
+│  ─────────────────────────────                                      │
+│  • Click "Install Commercive App"                                   │
+│  • You'll be taken to Shopify App Store                            │
+│  • Click "Add app" on your Shopify store                           │
+│  • Authorize the required permissions                               │
+│  • Wait for initial data sync                                       │
+│                                                                      │
+│  EXPECTED: App installation completes, data starts syncing          │
+│                                                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  STEP 6: FULL DASHBOARD ACCESS                                      │
+│  ───────────────────────────────                                    │
+│  • Return to dashboard.commercive.co                                │
+│  • Log in with your credentials                                     │
+│                                                                      │
+│  EXPECTED: Full dashboard with your store data                      │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### How Often is Data Updated?
+---
 
-- **Immediately** - When orders are placed, fulfilled, or changed
-- **Webhooks** - Shopify notifies the app of changes in real-time
-- **Initial Sync** - All existing data synced when app is installed
+## Expected Behaviors by Screen
 
-### Data Refresh
+### 1. Login Page (`/login`)
 
-If you notice data isn't current:
-1. Wait a few minutes (webhooks may be processing)
-2. Refresh the browser page
-3. If still not updated, contact support
+| What You Do | What Should Happen |
+|-------------|-------------------|
+| Visit the page | Landing page with features and "Sign In" / "Create an account" buttons |
+| Click "Sign In" | Login modal opens |
+| Enter wrong password | Error: "Invalid login credentials" |
+| Enter unverified email | Error: "Your email is not confirmed" |
+| Coming from email verification | Modal opens automatically with "Email verified!" toast |
+
+### 2. Signup Page (`/signUp`)
+
+| What You Do | What Should Happen |
+|-------------|-------------------|
+| Leave fields empty | "Create Account" button stays disabled |
+| Enter weak password | Password strength shows "Weak" in red |
+| Enter strong password | Password strength shows "Strong" in green |
+| Submit complete form | Success modal: "Account Created Successfully!" |
+| Try existing email | Error: "This email is already registered" |
+
+**After Signup, the system creates:**
+- Your login credentials (Supabase auth)
+- Your user profile (name, email, phone)
+- Your affiliate record (status: Pending)
+- Your unique Affiliate ID (format: AFF-XXXXXXXX)
+
+### 3. Account Pending Approval Screen
+
+**When you see this:** After logging in for the first time (before admin approval)
+
+| Element | Expected Content |
+|---------|-----------------|
+| Title | "Account Pending Approval" |
+| Message | Explanation that admin is reviewing your account |
+| Timeline | "Typically reviewed within 24-48 hours" |
+| Action | Wait for admin approval |
+
+**This is normal!** All new accounts must be approved by an administrator for security.
+
+### 4. Connect Your Shopify Store Screen
+
+**When you see this:** After your account is approved, but before connecting Shopify
+
+| Element | Expected Content |
+|---------|-----------------|
+| Title | "Connect Your Shopify Store" |
+| Message | Instructions to install the Commercive app |
+| Button | "Install Commercive App" → Links to Shopify App Store |
+| Steps | 4-step guide for installation |
+
+**Why this step?** The dashboard needs access to your Shopify store data to show inventory, orders, and shipments.
+
+### 5. Full Dashboard (After Everything is Set Up)
+
+| Section | What You Should See |
+|---------|-------------------|
+| Home/Dashboard | KPIs (sales, orders, shipments), charts, recent activity |
+| Inventory | All your products with stock levels |
+| Shipments | Orders with tracking information |
+| Partners | Your referral program (if applicable) |
 
 ---
 
-## Managing Your Store
+## Dashboard Features Guide
 
-### Selecting Your Store
+### Home Dashboard
 
-If you have multiple stores:
-1. Use the **Store Selector** dropdown in the header
-2. Select the store you want to view
-3. Dashboard data updates to show that store
+| Component | Expected Behavior |
+|-----------|-------------------|
+| **Total Sales** | Sum of all paid orders in selected date range |
+| **Fulfilled Orders** | Count of orders that have been shipped |
+| **Pending Shipments** | Orders waiting to be fulfilled |
+| **Average Order Value** | Total sales ÷ Number of orders |
+| **Date Filter** | Click to change date range (Today, 7 days, 30 days, Custom) |
+| **Sales Chart** | Visual graph of sales over time |
 
-### Store Information
+### Inventory Page
 
-Your store details include:
-- Store URL (your Shopify domain)
-- Store name
-- Sync status
-- Last data update
+| Action | Expected Result |
+|--------|-----------------|
+| View page | Table of all your products |
+| Click product row | Modal opens with full details |
+| View "Critical Items" | Products low on stock highlighted |
+| Search | Filter products by name or SKU |
+
+**Stock Level Columns:**
+| Column | Meaning |
+|--------|---------|
+| Available | Ready to sell right now |
+| Committed | Reserved for existing orders |
+| Incoming | Expected from suppliers |
+| On Hand | Physical count in warehouse |
+
+### Shipments Page
+
+| Action | Expected Result |
+|--------|-----------------|
+| View page | All orders with tracking info |
+| Filter by status | Show only Pending/In Transit/Delivered |
+| Click order | See full tracking details |
+
+**Tracking Statuses:**
+| Status | Meaning |
+|--------|---------|
+| Pending | Not yet shipped |
+| In Transit | Package on the way |
+| Out for Delivery | Arriving today |
+| Delivered | Successfully delivered |
+| Exception | Delivery issue - investigate |
 
 ---
 
-## Account Settings
+## Affiliate Program (If Enrolled)
 
-### Updating Your Profile
+### Your Affiliate Link
 
-1. Navigate to **Settings** (if available)
-2. Update your:
-   - Name
-   - Email (may require verification)
-   - Phone number
-   - Password
+After approval, you'll receive a unique affiliate link:
+```
+https://dashboard.commercive.co/affiliate-form?ref=AFF-XXXXXXXX
+```
 
-### Changing Password
+Share this link to:
+- Refer new customers
+- Earn commissions on their orders
+- Track your referral performance
 
-1. Go to Settings
-2. Click "Change Password"
-3. Enter current password
-4. Enter new password (twice)
-5. Save changes
+### Viewing Your Referrals
 
-### Email Notifications
+Go to **Partners** section to see:
+- Total referrals
+- Commission earned
+- Customer list
+- Order history from referrals
 
-Configure what notifications you receive:
-- Order alerts
-- Inventory warnings
-- Payout notifications
-- System updates
+### Commission Structure
+
+| Method | How It Works |
+|--------|--------------|
+| Per Order | Fixed $ amount for each order |
+| Percentage | % of order total |
+| Default | 1% of order total if not configured |
 
 ---
 
-## Frequently Asked Questions
+## Troubleshooting
 
-### Q: Why can't I see my store data?
+### "I signed up but didn't receive verification email"
 
-**A:** Several reasons:
-1. Your account may still be "Pending" - wait for admin approval
-2. Your account may not be linked to your store - contact support
-3. Initial sync may still be in progress - wait a few minutes
+1. Check your spam/junk folder
+2. Wait 5 minutes (email servers can be slow)
+3. Try signing up again with the same email
+4. Contact support if still not received
 
-### Q: My order count seems wrong
+### "I'm stuck on 'Pending Approval' for more than 48 hours"
 
-**A:** Check:
-1. Date filters - ensure correct date range is selected
-2. Financial status - dashboard may only show "paid" orders
-3. Recent orders may take a few minutes to sync
+1. This is normal - admins review accounts manually
+2. Check your email for any communication from admin
+3. Contact support with your email address
 
-### Q: Inventory levels don't match Shopify
+### "I'm approved but see 'Connect Shopify' instead of dashboard"
 
-**A:** This can happen if:
-1. You recently updated inventory in Shopify (wait for sync)
-2. Webhook delivery was delayed
-3. There's a timezone difference in timestamps
+1. This is correct! You need to install the Shopify app first
+2. Click "Install Commercive App"
+3. Complete the Shopify authorization
+4. Return to dashboard
 
-Contact support if discrepancy persists.
+### "My data isn't showing after installing the app"
 
-### Q: I installed the app but can't log in
+1. Initial sync can take a few minutes
+2. Refresh the page after 2-3 minutes
+3. Check that you authorized all permissions in Shopify
+4. Contact support if data doesn't appear after 10 minutes
 
-**A:** Steps to resolve:
-1. Use the email from your Shopify store
-2. Try the password reset function
-3. Check spam folder for verification emails
-4. Contact admin if issue persists
+### "My inventory numbers don't match Shopify"
 
-### Q: How do I add another team member?
+1. Data syncs in real-time via webhooks
+2. Recent changes may take 1-2 minutes to appear
+3. Refresh the page to see latest data
+4. Contact support if discrepancy persists
 
-**A:** Currently, each store has one primary user. Contact support for:
-- Additional user accounts
-- Team member access
-- Multi-user requirements
+---
 
-### Q: Why is my affiliate status "Pending"?
+## Quick Reference Cards
 
-**A:** New accounts start as "Pending" for security. An admin will:
-1. Review your application
-2. Verify your store information
-3. Approve your account
-4. You'll receive email notification
+### Your Account States
+
+| Your State | What You See | What To Do |
+|------------|--------------|------------|
+| Just signed up | "Check your email" | Click verification link |
+| Email verified | Login modal | Log in |
+| Pending approval | "Account Pending Approval" | Wait for admin |
+| Approved, no Shopify | "Connect Your Shopify Store" | Install app |
+| Fully set up | Full dashboard | Use the platform! |
+
+### Key URLs
+
+| Purpose | URL |
+|---------|-----|
+| Dashboard | `dashboard.commercive.co` |
+| Login | `dashboard.commercive.co/login` |
+| Signup | `dashboard.commercive.co/signUp` |
+| Shopify App | `apps.shopify.com/commercive` |
+
+### Getting Help
+
+1. **Read this guide** - Most answers are here
+2. **Check FAQ section** - Common issues explained
+3. **Contact support** - Provide your email and issue description
+
+---
+
+## Data Privacy & Security
+
+### What Data We Access
+
+When you connect your Shopify store, we access:
+- Product and inventory data
+- Order information
+- Customer shipping addresses (for fulfillment)
+- Store settings
+
+### What We DON'T Access
+
+- Payment/credit card information
+- Customer passwords
+- Your Shopify admin password
+
+### Your Data Rights
+
+- You can disconnect your store at any time
+- Your data is encrypted in transit and at rest
+- We don't sell your data to third parties
 
 ---
 
 ## Tips for Success
 
-### Optimize Your Dashboard Use
-
-1. **Check daily** - Monitor sales and inventory regularly
-2. **Set date ranges** - Use custom ranges for reporting periods
-3. **Watch critical items** - Reorder before stockouts
-4. **Track shipments** - Stay on top of delivery issues
-
-### Best Practices
-
 1. **Keep Shopify updated** - Dashboard accuracy depends on Shopify data
-2. **Fulfill orders promptly** - Tracking info updates on fulfillment
-3. **Monitor low stock** - Prevent missed sales
-4. **Review regularly** - Weekly check of all metrics
-
-### Common Workflows
-
-**Daily Check:**
-1. Open dashboard
-2. Review today's orders
-3. Check pending shipments
-4. Note any critical inventory
-
-**Weekly Review:**
-1. Set date range to "Last 7 Days"
-2. Review sales trends
-3. Check fulfillment rate
-4. Plan inventory restocking
+2. **Check inventory daily** - Prevent stockouts before they happen
+3. **Monitor shipments** - Stay on top of delivery issues
+4. **Review weekly** - Use date filters for period comparisons
+5. **Use mobile** - Dashboard works on tablets and phones
 
 ---
 
-## Getting Help
-
-### Self-Service Resources
-
-1. Read this user guide
-2. Check FAQ section above
-3. Review error messages carefully
-
-### Contacting Support
-
-If you need additional help:
-1. Note your store URL
-2. Describe the issue in detail
-3. Include screenshots if possible
-4. Contact support through provided channels
-
-### Reporting Issues
-
-When reporting bugs:
-1. What page were you on?
-2. What action were you trying to do?
-3. What happened vs. what you expected?
-4. Any error messages shown?
-
----
-
-## System Requirements
-
-### Browser Compatibility
-
-For best experience, use:
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-### Mobile Access
-
-The dashboard is responsive and works on:
-- Tablets (iPad, Android tablets)
-- Mobile phones
-- Recommended: Use larger screens for detailed data review
-
-### Internet Connection
-
-- Stable internet connection required
-- Recommended: Minimum 5 Mbps
-- Dashboard uses real-time data fetching
-
----
-
-Thank you for using Commercive! We're here to help you manage your e-commerce business more effectively.
+Thank you for using Commercive! We're here to help you grow your e-commerce business.
